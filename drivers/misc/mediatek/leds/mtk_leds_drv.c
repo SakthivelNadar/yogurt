@@ -525,7 +525,7 @@ EXPORT_SYMBOL(mt65xx_leds_brightness_set);
 int backlight_brightness_set(int level)
 {
 	struct cust_mt65xx_led *cust_led_list = mt_get_cust_led_list();
-	pr_debug("%s level=%d\n",__func__,level);
+
 	if (level > ((1 << MT_LED_LEVEL_BIT) - 1))
 		level = ((1 << MT_LED_LEVEL_BIT) - 1);
 	else if (level < 0)
