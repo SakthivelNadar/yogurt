@@ -472,3 +472,5 @@ CONFIG_MTK_FINGERPRINT_SELECT="ft9362_tee"
 #prize liaoxingen modify max backlight current about 60mA start
 CONFIG_LIGHTNESS_MAPPING_VALUE=212
 #prize liaoxingen modify max backlight current about 60mA end
+CONFIG_MODULE_FORCE_UNLOAD=y
+CONFIG_MODULE_FORCE_LOAD=y
