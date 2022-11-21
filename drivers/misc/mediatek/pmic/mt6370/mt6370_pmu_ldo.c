@@ -109,15 +109,26 @@ static int mt6370_ldo_set_voltage_sel(
 	const int count = rdev->desc->n_voltages;
 	u8 data;
 
+//prize modified by huarui, compatible more drv, 20190111-start
+	int ret = 0;
+//prize modified by huarui, compatible more drv, 20190111-end
+
 	if (selector > count)
 		return -EINVAL;
 
 	data = (u8)selector;
 	data <<= mt6370_ldo_regulators.vol_shift;
 
-	return mt6370_pmu_reg_update_bits(info->chip,
+//prize modified by huarui, compatible more drv, 20190111-start
+	//return mt6370_pmu_reg_update_bits(info->chip,
+	ret = mt6370_pmu_reg_update_bits(info->chip,
 		mt6370_ldo_regulators.vol_reg,
 		mt6370_ldo_regulators.vol_mask, data);
+	if (ret > 0){
+		return 0; //return 0 as No error.
+	}
+	return ret;
+//prize modified by huarui, compatible more drv, 20190111-end
 }
 
 static int mt6370_ldo_get_voltage_sel(struct regulator_dev *rdev)

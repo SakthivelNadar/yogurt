@@ -2127,6 +2127,12 @@ static int mt6370_set_otg_current_limit(struct charger_device *chg_dev, u32 uA)
 	return ret;
 }
 
+//prize added by sunshuai, wireless charge MT5725   15W soft start, 20200509-start
+#if defined(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+extern int set_otg_gpio(int en);
+#endif
+//prize added by sunshuai, wireless charge MT5725   15W soft start, 20200509-end
+
 static int mt6370_enable_otg(struct charger_device *chg_dev, bool en)
 {
 	int ret = 0;
@@ -2137,6 +2143,12 @@ static int mt6370_enable_otg(struct charger_device *chg_dev, bool en)
 	u8 lg_slew_rate = en ? 0x7C : 0x73;
 
 	dev_info(chg_data->dev, "%s: en = %d\n", __func__, en);
+
+//prize added by sunshuai, wireless charge MT5725   15W soft start, 20200509-start
+#if defined(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+	set_otg_gpio(en);
+#endif
+//prize added by sunshuai, wireless charge MT5725	15W soft start, 20200509-end
 
 	mt6370_enable_hidden_mode(chg_data, true);
 
@@ -2818,6 +2830,76 @@ static int mt6370_dump_register(struct charger_device *chg_dev)
 	ret = 0;
 	return ret;
 }
+
+//start add by sunshuai 2019-04-03 for charge  current  show
+int mt6370_get_ibat(struct charger_device *chg_dev, u32 *ibus)
+{
+     	int i = 0, ret = 0;
+		int ret_ibat =0;
+		u32 ichg = 0, aicr = 0, mivr = 0, ieoc = 0, cv = 0;
+		bool chg_en = 0;
+		int adc_vsys = 0, adc_vbat = 0, adc_ibat = 0, adc_ibus = 0;
+		int adc_vbus = 0;
+		enum mt6370_charging_status chg_status = MT6370_CHG_STATUS_READY;
+		u8 chg_stat = 0, chg_ctrl[2] = {0};
+		struct mt6370_pmu_charger_data *chg_data =
+			dev_get_drvdata(&chg_dev->dev);
+	
+		ret = mt6370_get_ichg(chg_dev, &ichg);
+		ret = mt6370_get_aicr(chg_dev, &aicr);
+		ret = mt6370_get_charging_status(chg_data, &chg_status);
+		ret = mt6370_get_ieoc(chg_data, &ieoc);
+		ret = mt6370_get_mivr(chg_dev, &mivr);
+		ret = mt6370_get_cv(chg_dev, &cv);
+		ret = mt6370_is_charging_enable(chg_data, &chg_en);
+		ret = mt6370_get_adc(chg_data, MT6370_ADC_VSYS, &adc_vsys);
+		ret = mt6370_get_adc(chg_data, MT6370_ADC_VBAT, &adc_vbat);
+		ret = mt6370_get_adc(chg_data, MT6370_ADC_IBAT, &adc_ibat);
+		ret = mt6370_get_adc(chg_data, MT6370_ADC_IBUS, &adc_ibus);
+		ret = mt6370_get_adc(chg_data, MT6370_ADC_VBUS_DIV5, &adc_vbus);
+	
+		chg_stat = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGSTAT1);
+		ret = mt6370_pmu_reg_block_read(chg_data->chip, MT6370_PMU_REG_CHGCTRL1,
+			2, chg_ctrl);
+	
+		if (chg_status == MT6370_CHG_STATUS_FAULT) {
+			for (i = 0; i < ARRAY_SIZE(mt6370_chg_reg_addr); i++) {
+				ret = mt6370_pmu_reg_read(chg_data->chip,
+					mt6370_chg_reg_addr[i]);
+				if (ret < 0)
+					return ret;
+	
+				dev_dbg(chg_data->dev, "%s: reg[0x%02X] = 0x%02X\n",
+					__func__, mt6370_chg_reg_addr[i], ret);
+			}
+		}
+	
+		dev_info(chg_data->dev,
+			"%s: ICHG = %dmA, AICR = %dmA, MIVR = %dmV, IEOC = %dmA, CV = %dmV\n",
+			__func__, ichg / 1000, aicr / 1000, mivr / 1000,
+			ieoc / 1000, cv / 1000);
+	
+		dev_info(chg_data->dev,
+			"%s: VSYS = %dmV, VBAT = %dmV, IBAT = %dmA, IBUS = %dmA, VBUS = %dmV\n",
+			__func__, adc_vsys / 1000, adc_vbat / 1000,
+			adc_ibat / 1000, adc_ibus / 1000, adc_vbus / 1000);
+	
+		dev_info(chg_data->dev, "%s: CHG_EN = %d, CHG_STATUS = %s, CHG_STAT = 0x%02X\n",
+			__func__, chg_en, mt6370_chg_status_name[chg_status], chg_stat);
+	
+		dev_info(chg_data->dev, "%s: CHG_CTRL1 = 0x%02X, CHG_CTRL2 = 0x%02X\n",
+			__func__, chg_ctrl[0], chg_ctrl[1]);
+	
+		ret = 0;
+		*ibus = adc_ibus / 1000;
+		ret_ibat = adc_ibat / 1000;
+		return ret_ibat;
+
+}
+EXPORT_SYMBOL(mt6370_get_ibat);
+//end add by sunshuai 2019-04-03 for charge  current  show
+
+
 
 static int mt6370_enable_chg_type_det(struct charger_device *chg_dev, bool en)
 {

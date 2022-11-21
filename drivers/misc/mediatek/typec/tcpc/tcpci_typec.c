@@ -57,6 +57,24 @@ static const char *const typec_wait_ps_name[] = {
 	"SRC_VSafe5V",
 };
 #endif	/* TYPEC_INFO2_ENABLE */
+/*prize-sunshuai-20190213, add for Wireless charging and OTG switching  start*/
+#if defined(CONFIG_PRIZE_NE6153_SUPPORT) || defined(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715) || defined(CONFIG_PRIZE_MT5725_SUPPORT_15W) || defined(CONFIG_PRIZE_CV8035D_SUPPORT)
+extern int set_otg_gpio(int en);
+
+#if defined(CONFIG_PRIZE_NE6153_SUPPORT) || defined(CONFIG_PRIZE_CV8035D_SUPPORT)
+extern int wrx_disable_vout(void);
+#endif
+
+#if defined(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715)
+extern  int  ldo_disable(void);
+#endif
+
+#if defined(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+extern int turn_off_5725(int en);
+#endif
+
+#endif
+/*prize-sunshuai-20190213, add for Wireless charging and OTG switching  end*/
 
 static inline void typec_wait_ps_change(struct tcpc_device *tcpc_dev,
 					enum TYPEC_WAIT_PS_STATE state)
@@ -1979,6 +1997,11 @@ static inline bool typec_is_ignore_cc_change(
 	return false;
 }
 
+//prize added by huarui, mt5725 support, 20190111-start
+#if defined(CONFIG_PRIZE_MT5725_SUPPORT)
+extern int mt5725_sw_sel_usb(int is_usb);
+#endif
+//prize added by huarui, mt5725 support, 20190111-end
 int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 {
 	int ret;
@@ -2016,8 +2039,24 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 	if (tcpc_dev->typec_state == typec_attachwait_snk
 		|| tcpc_dev->typec_state == typec_attachwait_src)
 		typec_wait_ps_change(tcpc_dev, TYPEC_WAIT_PS_DISABLE);
-
+/*prize-sunshuai-20190213, add for Wireless charging and OTG switching  start */
+#if defined(CONFIG_PRIZE_NE6153_SUPPORT) || defined(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715) || defined(CONFIG_PRIZE_MT5725_SUPPORT_15W) || defined(CONFIG_PRIZE_CV8035D_SUPPORT)
 	if (typec_is_cc_attach(tcpc_dev)) {
+#if defined(CONFIG_PRIZE_NE6153_SUPPORT) || defined(CONFIG_PRIZE_CV8035D_SUPPORT)
+		wrx_disable_vout();
+#endif
+
+#if defined(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715)
+        ldo_disable();
+#endif
+
+#if defined(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+		turn_off_5725(1);
+#endif
+
+#if defined(CONFIG_PRIZE_NE6153_SUPPORT) || defined(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715) || defined(CONFIG_PRIZE_CV8035D_SUPPORT)
+		set_otg_gpio(1);
+#endif
 		typec_attach_wait_entry(tcpc_dev);
 #ifdef CONFIG_WATER_DETECTION
 		if (typec_state_old == typec_unattached_snk ||
@@ -2031,8 +2070,47 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 #endif /* CONFIG_WD_POLLING_ONLY */
 		}
 #endif /* CONFIG_WATER_DETECTION */
-	} else
+	} else{
+#if defined(CONFIG_PRIZE_NE6153_SUPPORT) || defined(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715) || defined(CONFIG_PRIZE_CV8035D_SUPPORT)
+		set_otg_gpio(0);
+#endif
+
+#if defined(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+		turn_off_5725(0);
+#endif
 		typec_detach_wait_entry(tcpc_dev);
+	}
+#else
+
+	if (typec_is_cc_attach(tcpc_dev)) {
+	//prize added by huarui, mt5725 support, 20190111-start
+	#if defined(CONFIG_PRIZE_MT5725_SUPPORT)
+		mt5725_sw_sel_usb(1);
+	#endif
+	//prize added by huarui, mt5725 support, 20190111-start
+		typec_attach_wait_entry(tcpc_dev);
+#ifdef CONFIG_WATER_DETECTION
+		if (typec_state_old == typec_unattached_snk ||
+		    typec_state_old == typec_unattached_src) {
+#ifdef CONFIG_WD_POLLING_ONLY
+			if (get_boot_mode() == KERNEL_POWER_OFF_CHARGING_BOOT
+			    || get_boot_mode() == LOW_POWER_OFF_CHARGING_BOOT)
+				typec_check_water_status(tcpc_dev);
+#else
+			typec_check_water_status(tcpc_dev);
+#endif /* CONFIG_WD_POLLING_ONLY */
+		}
+#endif /* CONFIG_WATER_DETECTION */
+	} else{
+		typec_detach_wait_entry(tcpc_dev);
+	//prize added by huarui, mt5725 support, 20190111-start
+	#if defined(CONFIG_PRIZE_MT5725_SUPPORT)
+		mt5725_sw_sel_usb(0);
+	#endif
+	//prize added by huarui, mt5725 support, 20190111-start
+	}
+#endif
+/*prize-sunshuai-20190213, add for Wireless charging and OTG switching  end */
 
 	return 0;
 }
@@ -2144,6 +2222,39 @@ static inline int typec_handle_pe_idle(struct tcpc_device *tcpc_dev)
 
 	return 0;
 }
+
+/*prize add by sunshuai for A-C 30w charge 20201109-start */
+#ifdef CONFIG_PRIZE_ATOC_TYPEC_CHARGE
+#ifdef CONFIG_TYPEC_WAIT_BC12
+static inline void typec_handle_sink_wait_bc12(struct tcpc_device *tcpc_dev)
+{
+	uint8_t type;
+	enum charger_type chg_type;
+
+	mutex_lock(&tcpc_dev->access_lock);
+
+	type = tcpc_dev->typec_attach_new;
+	chg_type = mt_get_charger_type();
+	TYPEC_INFO("type=%d, chg_type=%d, count=%d\r\n", type, chg_type,
+		tcpc_dev->sink_wait_bc12_count);
+
+	if (type != TYPEC_ATTACHED_SNK)
+		goto out;
+
+	if (chg_type != CHARGER_UNKNOWN ||
+		tcpc_dev->sink_wait_bc12_count >= 20) {
+		__pd_put_cc_attached_event(tcpc_dev, type);
+	} else {
+		tcpc_dev->sink_wait_bc12_count++;
+		tcpc_enable_timer(tcpc_dev, TYPEC_RT_TIMER_SINK_WAIT_BC12);
+	}
+out:
+	mutex_unlock(&tcpc_dev->access_lock);
+}
+#endif /* CONFIG_TYPEC_WAIT_BC12 */
+#endif /* CONFIG_PRIZE_ATOC_TYPEC_CHARGE */
+/*prize add by sunshuai for A-C 30w charge 20201109-end */
+
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 static inline int typec_handle_src_reach_vsafe0v(struct tcpc_device *tcpc_dev)
@@ -2265,6 +2376,16 @@ int tcpc_typec_handle_timeout(struct tcpc_device *tcpc_dev, uint32_t timer_id)
 	case TYPEC_RT_TIMER_PE_IDLE:
 		ret = typec_handle_pe_idle(tcpc_dev);
 		break;
+/*prize add by sunshuai for A-C 30w charge 20201109-start */
+#ifdef CONFIG_PRIZE_ATOC_TYPEC_CHARGE
+#ifdef CONFIG_TYPEC_WAIT_BC12
+	case TYPEC_RT_TIMER_SINK_WAIT_BC12:
+		typec_handle_sink_wait_bc12(tcpc_dev);
+		break;
+#endif /* CONFIG_TYPEC_WAIT_BC12 */
+#endif /* CONFIG_PRIZE_ATOC_TYPEC_CHARGE */
+/*prize add by sunshuai for A-C 30w charge 20201109-end */
+
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 #ifdef CONFIG_TYPEC_ATTACHED_SRC_SAFE0V_DELAY
@@ -2411,7 +2532,15 @@ static inline int typec_handle_vbus_absent(struct tcpc_device *tcpc_dev)
 	}
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
+/*prize add by sunshuai for A-C 30w charge 20201109-start */
+#ifdef CONFIG_PRIZE_ATOC_TYPEC_CHARGE
+	if (tcpc_dev->typec_state == typec_attached_snk ||
+			tcpc_dev->typec_state == typec_attached_dbgacc_snk ||
+			tcpc_dev->typec_state == typec_attached_custom_src)
+#else
 	if (tcpc_dev->typec_state == typec_attached_snk)
+#endif
+/*prize add by sunshuai for A-C 30w charge 20201109-end */
 		typec_attached_snk_vbus_absent(tcpc_dev);
 
 #ifndef CONFIG_TCPC_VSAFE0V_DETECT

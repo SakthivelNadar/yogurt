@@ -57,6 +57,10 @@ static struct i2c_client *g_pstI2CclientG;
 #ifndef EEPROM_I2C_READ_MSG_LENGTH_MAX
 #define EEPROM_I2C_READ_MSG_LENGTH_MAX 32
 #endif
+/*prize add by zhengjiang.zhu for dual camea calibration 20191205--end*/
+#define EEPROM_WRITE_ID   0xB0
+extern int iWriteRegI2C(u8 *a_pSendData , u16 a_sizeSendData, u16 i2cId);
+/*prize add by zhengjiang.zhu for dual camea calibration 20191205--end*/
 
 static int Read_I2C_CAM_CAL(u16 a_u2Addr, u32 ui4_length, u8 *a_puBuff)
 {
@@ -157,4 +161,43 @@ unsigned int Common_read_region(struct i2c_client *client, unsigned int addr,
 	else
 		return 0;
 }
+/*prize add by zhengjiang.zhu for dual camea calibration write otp 20191205-start*/
+static int write_I2C_CAM_CAL(u16 addr, char para)
+{
+	char pu_send_cmd[3] = {(char)(addr >> 8), (char)(addr & 0xFF), (char)(para & 0xFF)};
+	iWriteRegI2C(pu_send_cmd, 3, EEPROM_WRITE_ID);
+	return 0;
+}
 
+
+int iWriteData_CAM_CAL(unsigned int ui4_offset,
+	unsigned int ui4_length, unsigned char *pinputdata)
+{
+	int i = 0;
+	u8 delay = 0;
+	write_I2C_CAM_CAL(0x8000,0x00);  //disable write_protection
+	msleep(10);
+
+    for(i = 0; i < ui4_length; i++) {
+        write_I2C_CAM_CAL((u16)ui4_offset+i, (char) * (pinputdata + i));
+        //printk("iWriteData_CAM_CAL ui4_offset=0x%x pinputdata=0x%x \n",ui4_offset+i,(char) * (pinputdata + i));
+        mdelay(delay);
+	}
+
+	write_I2C_CAM_CAL(0x8000,0x0E);  //enable write_protection
+	msleep(10);
+
+	return 0;
+}
+
+unsigned int Common_write_region(struct i2c_client *client, unsigned int addr,
+				unsigned char *data, unsigned int size)
+{
+	//printk("iWriteData_CAM_CAL ui4_offset=0x%x \n",addr);
+	g_pstI2CclientG = client;
+	if (iWriteData_CAM_CAL(addr, size, data) == 0)
+		return size;
+	else
+		return 0;
+}
+/*prize add by zhengjiang.zhu for dual camea calibration write otp 20191205-end*/

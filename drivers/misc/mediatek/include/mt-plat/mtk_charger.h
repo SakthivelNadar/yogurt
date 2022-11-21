@@ -40,6 +40,12 @@ enum {
 	SLAVE_CHARGER = 1,
 	TOTAL_CHARGER = 2,
 	DIRECT_CHARGER = 10,
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	MAIN_DIVIDER_CHARGER = 20,
+	SLAVE_DIVIDER_CHARGER = 21,
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 };
 
 struct charger_consumer {

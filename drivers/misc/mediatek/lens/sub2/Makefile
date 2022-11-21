@@ -28,7 +28,9 @@ ifeq ($(CONFIG_MTK_LENS_USE_MODULE), y)
 SUB2_CFILES += sub2_lens.c
 
 #SUB2_CFILES  += common/ak7371af/AK7371AF.c
-
+#/*prize  add  for main3 af by zhuzhengjiang    20190416-begin*/
+SUB2_CFILES  += common/dw9718saf/DW9718SAF.c
+#/*prize  add  for main3 af by zhuzhengjiang    20190416-end*/
 obj-m := sub2af.o
 sub2af-objs := $(SUB2_CFILES:.c=.o)
 
@@ -36,6 +38,9 @@ else
 
 obj-y += sub2_lens.o
 #obj-y += common/ak7371af/
+#/*prize  add  for main3 af by zhuzhengjiang    20190416-begin*/
+obj-y  += common/dw9718saf/
+#/*prize  add  for main3 af by zhuzhengjiang    20190416-end*/
 
 
 endif

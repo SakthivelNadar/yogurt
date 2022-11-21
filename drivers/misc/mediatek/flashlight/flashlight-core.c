@@ -67,6 +67,17 @@ static int pt_strict; /* always be zero in C standard */
 
 static int pt_is_low(int pt_low_vol, int pt_low_bat, int pt_over_cur);
 #endif
+/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  add for flashlight node:flashlight_torch*/
+//#define FLASHLIGHT_CHANNEL1_TORCH_DUTY       6
+//#define FLASHLIGHT_CHANNEL2_TORCH_DUTY       0
+#define FLASHLIGHT_TORCH_TIMEOUT  0
+#define PRIZE_LEVEL_TORCH 3
+static int flashlight_state = 0;
+static int decouple = 1;
+static const unsigned char  prize_torch_level[PRIZE_LEVEL_TORCH] = {
+	0x00, 0x02, 0x03
+};
+/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  end for flashlight node:flashlight_torch*/
 
 /******************************************************************************
  * Weak functions
@@ -463,6 +474,9 @@ int flashlight_dev_register_by_device_id(
 	fdev->dev_id = *dev_id;
 	fdev->low_pt_level = -1;
 	fdev->charger_status = FLASHLIGHT_CHARGER_READY;
+	/*prize add by zhuzhengjiang for flashlight_torch 20200315 start*/
+	decouple = dev_id->decouple;
+	/*prize add by zhuzhengjiang for flashlight_torch 20200315 start*/
 	list_add_tail(&fdev->node, &flashlight_list);
 	mutex_unlock(&fl_mutex);
 
@@ -575,8 +589,9 @@ static int pt_is_low(int pt_low_vol, int pt_low_bat, int pt_over_cur)
 		if (pt_strict)
 			is_low = 2;
 	}
-
-	return is_low;
+	/*zhengjiang.zhu@prize.Camera.Driver  2018/11/19  modify  for rm low power*/
+	return 0;  //is_low
+	/*zhengjiang.zhu@prize.Camera.Driver  2018/11/19  end  for rm low power*/
 }
 
 static int pt_trigger(void)
@@ -589,6 +604,8 @@ static int pt_trigger(void)
 		if (fdev->enable)
 			is_flash_enable = 1;
 	}
+	/*prize  remove by zhuzhengjiang for flashlight can open when low power 20190325-begin*/
+	#if 0
 	if (is_flash_enable) {
 		list_for_each_entry(fdev, &flashlight_list, node) {
 			if (!fdev->ops)
@@ -610,6 +627,8 @@ static int pt_trigger(void)
 			fdev->ops->flashlight_release();
 		}
 	}
+	#endif
+	/*prize  remove by zhuzhengjiang for flashlight can open when low power 20190325-end*/
 	mutex_unlock(&fl_mutex);
 
 	return 0;
@@ -1544,6 +1563,172 @@ unlock:
 	return ret;
 }
 static DEVICE_ATTR_RW(flashlight_sw_disable);
+/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  add for flashlight node:flashlight_torch*/
+/* torch sysfs */
+/*torch format: AB:  A: torch_flag, 1:on 0:off   B: torch_duty */
+static ssize_t flashlight_torch_show(
+		struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", flashlight_state);
+}
+
+static ssize_t flashlight_torch_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct flashlight_dev *fdev,*fdev2;
+	struct flashlight_dev_arg fl_dev_arg;
+	int type, ct, part,part_id;
+	int ret;
+	int len,torch_duty,torch_flag;
+	int j= 0;
+	int temp[8] = {0};
+
+	len = (size < (sizeof(size) - 1)) ? size : (sizeof(size) - 1);
+	flashlight_state = 0;
+	temp[len] = '\0';
+	for(; j< len-1;j++) {
+		temp[j] = *(buf +j) - '0';
+		printk("temp buff [%d]=%d \n",j,temp[j]);
+		flashlight_state = flashlight_state * 10 + temp[j];
+	}
+	torch_duty = temp[1];
+	torch_flag = temp[0];
+	
+	pr_debug("flashlight_torch_store entry  flashlight_state=%d torch_duty=%d torch_flag=%d  decouple =%d\n",flashlight_state,torch_duty,torch_flag,decouple);
+
+	/* find flashlight device */
+	// led1
+	mutex_lock(&fl_mutex);
+	fdev = flashlight_find_dev_by_index(
+			0,
+			0);
+	mutex_unlock(&fl_mutex);
+	if (!fdev) {
+		pr_info("Find no flashlight fdev device \n");
+		return -EINVAL;
+	}
+
+	/* setup flash dev arguments */
+	//fl_dev_arg.arg = fl_arg.arg;
+	fl_dev_arg.channel = fdev->dev_id.channel;
+	type = fdev->dev_id.type;
+	ct = fdev->dev_id.ct;
+	part = fdev->dev_id.part;
+
+	pr_debug("_flashlight_ioctl fl_dev_arg.arg=%d fl_dev_arg.channel=%d type=%d ct=%d part=%d\n",fl_dev_arg.arg,fl_dev_arg.channel,type,ct,part);
+	if (flashlight_verify_index(type, ct, part)) {
+		pr_err("Failed with error index\n");
+		return -EINVAL;
+	}
+
+	//FLASHLIGHTIOC_X_SET_DRIVER
+	part_id = flashlight_get_part_id(part);
+	pr_debug("flashlight_torch_store part_id=%d\n",part_id);
+	if (fdev->ops) {
+		mutex_lock(&fl_mutex);
+		ret = fdev->ops->flashlight_set_driver(part_id);
+		if (fdev->dev_id.decouple) {
+			fl_dev_arg.arg = FLASHLIGHT_SCENARIO_DECOUPLE;
+			fdev->ops->flashlight_ioctl(
+				FLASH_IOC_SET_SCENARIO,
+				(unsigned long)&fl_dev_arg);
+		}
+		mutex_unlock(&fl_mutex);
+
+		//FLASH_IOC_SET_DUTY
+		//fl_dev_arg.arg = FLASHLIGHT_CHANNEL1_TORCH_DUTY;
+		fl_dev_arg.arg = torch_duty;
+		printk("led1 duty=%d \n",fl_dev_arg.arg);
+		mutex_lock(&fl_mutex);
+		ret = fl_set_level(fdev, fl_dev_arg.arg);
+		mutex_unlock(&fl_mutex);
+
+		//FLASH_IOC_SET_TIME_OUT_TIME_MS
+		fl_dev_arg.arg = FLASHLIGHT_TORCH_TIMEOUT;
+		if (fdev->ops->flashlight_ioctl(FLASH_IOC_SET_TIME_OUT_TIME_MS,
+				(unsigned long)&fl_dev_arg)) {
+			pr_err("Failed to set timeout\n");
+			return -EFAULT;
+		}
+
+		//FLASH_IOC_SET_ONOFF
+		fl_dev_arg.arg = torch_flag;
+		mutex_lock(&fl_mutex);
+		ret = fl_enable(fdev, fl_dev_arg.arg);
+		mutex_unlock(&fl_mutex);
+	} else {
+		pr_err("Failed with no flashlight fdev ops \n");
+		return -EFAULT;
+	}
+	// set led2
+	if(decouple == 0) {
+		mutex_lock(&fl_mutex);
+		fdev2 = flashlight_find_dev_by_index(
+				0,
+				1);
+		mutex_unlock(&fl_mutex);
+		if (!fdev2) {
+			pr_info("Find no flashlight fdev2 device\n");
+			return -EINVAL;
+		}
+
+		/* setup flash dev arguments */
+		//fl_dev_arg.arg = fl_arg.arg;
+		fl_dev_arg.channel = fdev2->dev_id.channel;
+		type = fdev2->dev_id.type;
+		ct = fdev2->dev_id.ct;
+		part = fdev2->dev_id.part;
+
+		pr_debug("_flashlight_ioctl fl_dev_arg.arg=%d fl_dev_arg.channel=%d type=%d ct=%d part=%d\n",fl_dev_arg.arg,fl_dev_arg.channel,type,ct,part);
+		if (flashlight_verify_index(type, ct, part)) {
+			pr_err("Failed with error index\n");
+			return -EINVAL;
+		}
+
+		//FLASHLIGHTIOC_X_SET_DRIVER
+		part_id = flashlight_get_part_id(part);
+		pr_debug("flashlight_torch_store part_id=%d\n",part_id);
+		if (fdev2->ops) {
+			mutex_lock(&fl_mutex);
+			ret = fdev2->ops->flashlight_set_driver(part_id);
+			if (fdev2->dev_id.decouple) {
+				fl_dev_arg.arg = FLASHLIGHT_SCENARIO_DECOUPLE;
+				fdev2->ops->flashlight_ioctl(
+					FLASH_IOC_SET_SCENARIO,
+					(unsigned long)&fl_dev_arg);
+			}
+			mutex_unlock(&fl_mutex);
+
+			//FLASH_IOC_SET_DUTY
+			//fl_dev_arg.arg = FLASHLIGHT_CHANNEL2_TORCH_DUTY;
+			fl_dev_arg.arg = torch_duty;
+			printk("led1 duty=%d \n",fl_dev_arg.arg);
+			mutex_lock(&fl_mutex);
+			ret = fl_set_level(fdev2, fl_dev_arg.arg);
+			mutex_unlock(&fl_mutex);
+
+			//FLASH_IOC_SET_TIME_OUT_TIME_MS
+			fl_dev_arg.arg = FLASHLIGHT_TORCH_TIMEOUT;
+			if (fdev2->ops->flashlight_ioctl(FLASH_IOC_SET_TIME_OUT_TIME_MS,
+					(unsigned long)&fl_dev_arg)) {
+				pr_err("Failed to set timeout\n");
+				return -EFAULT;
+			}
+
+			//FLASH_IOC_SET_ONOFF
+			fl_dev_arg.arg = torch_flag;
+			mutex_lock(&fl_mutex);
+			ret = fl_enable(fdev2, fl_dev_arg.arg);
+			mutex_unlock(&fl_mutex);
+		} else {
+			pr_err("Failed with no flashlight fdev2 ops\n");
+			return -EFAULT;
+		}
+	}
+	return size;
+}
+static DEVICE_ATTR(flashlight_torch, 0644, flashlight_torch_show, flashlight_torch_store);
+/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13 end for flashlight node:flashlight_torch*/
 
 /******************************************************************************
  * Platform device and driver
@@ -1662,7 +1847,13 @@ static int flashlight_probe(struct platform_device *dev)
 		pr_err("Failed to create device file(sw_disable)\n");
 		goto err_create_sw_disable_device_file;
 	}
-
+	/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  add for flashlight node:flashlight_torch*/
+	if (device_create_file(flashlight_device,
+				&dev_attr_flashlight_torch)) {
+		pr_err("Failed to create device file(torch) \n");
+		goto err_create_torch_device_file;
+	}
+	/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  end for flashlight node:flashlight_torch*/
 	/* init flashlight */
 	fl_init();
 
@@ -1682,6 +1873,10 @@ err_create_charger_device_file:
 	device_remove_file(flashlight_device, &dev_attr_flashlight_pt);
 err_create_pt_device_file:
 	device_remove_file(flashlight_device, &dev_attr_flashlight_strobe);
+ /*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  add for flashlight node:flashlight_torch*/
+err_create_torch_device_file:
+	device_remove_file(flashlight_device, &dev_attr_flashlight_torch);
+ /*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  end for flashlight node:flashlight_torch*/
 err_create_strobe_device_file:
 	device_destroy(flashlight_class, flashlight_devno);
 err_create_device:
@@ -1707,6 +1902,9 @@ static int flashlight_remove(struct platform_device *dev)
 	device_remove_file(flashlight_device, &dev_attr_flashlight_charger);
 	device_remove_file(flashlight_device, &dev_attr_flashlight_pt);
 	device_remove_file(flashlight_device, &dev_attr_flashlight_strobe);
+	/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  add for flashlight node:flashlight_torch*/
+	device_remove_file(flashlight_device, &dev_attr_flashlight_torch);
+	/*zhengjiang.zhu@prize.Camera.Driver  2018/11/13  end for flashlight node:flashlight_torch*/
 	/* remove device */
 	device_destroy(flashlight_class, flashlight_devno);
 	/* remove class */

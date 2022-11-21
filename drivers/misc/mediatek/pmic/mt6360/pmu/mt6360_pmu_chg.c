@@ -1372,7 +1372,22 @@ static int mt6360_is_safety_timer_enabled(
 	*en = (ret & MT6360_MASK_TMR_EN) ? true : false;
 	return 0;
 }
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+static int mt6360_enable_hz(struct charger_device *chg_dev, bool en)
+{
+	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
+	int ret = 0;
 
+	dev_info(mpci->dev, "%s: en = %d\n", __func__, en);
+
+	ret = (en ? mt6360_pmu_reg_set_bits : mt6360_pmu_reg_clr_bits)
+		(mpci->mpi, MT6360_PMU_CHG_CTRL1, MT6360_MASK_HZ_EN);
+
+	return ret;
+}
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 static const u32 otg_oc_table[] = {
 	500000, 700000, 1100000, 1300000, 1800000, 2100000, 2400000, 3000000
 };
@@ -1920,6 +1935,11 @@ static const struct charger_ops mt6360_chg_ops = {
 	.enable_force_typec_otp = mt6360_enable_force_typec_otp,
 	.get_ctd_dischg_status = mt6360_get_ctd_dischg_status,
 	.enable_hidden_mode = mt6360_enable_hidden_mode,
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	.enable_hz = mt6360_enable_hz,
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 };
 
 static const struct charger_properties mt6360_chg_props = {

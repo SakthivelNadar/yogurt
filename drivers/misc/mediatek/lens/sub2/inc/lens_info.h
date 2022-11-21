@@ -59,7 +59,9 @@
 #define AFDRV_MT9P017AF "MT9P017AF"
 #define AFDRV_OV8825AF "OV8825AF"
 #define AFDRV_WV511AAF "WV511AAF"
-
+/*prize  add  for main3 af by zhuzhengjiang    20190416-begin*/
+#define AFDRV_DW9718SAF "DW9718SAF"
+/*prize  add  for main3 af by zhuzhengjiang    20190416-end*/
 /* Structures */
 struct stAF_MotorInfo {
 	/* current position */

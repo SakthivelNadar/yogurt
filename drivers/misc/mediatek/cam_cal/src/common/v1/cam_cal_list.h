@@ -24,6 +24,7 @@ struct stCAM_CAL_LIST_STRUCT {
 	unsigned int slaveID;
 	cam_cal_cmd_func readCamCalData;
 	unsigned int maxEepromSize;
+	cam_cal_cmd_func writeCamCalData;/*prize add by zhengjiang.zhu for dual camea calibration write otp 20191205-start*/
 };
 
 

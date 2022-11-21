@@ -259,7 +259,13 @@ void mtk_pe40_end(struct charger_manager *pinfo, int type, bool retry)
 
 bool mtk_is_TA_support_pd_pps(struct charger_manager *pinfo)
 {
-	if (pinfo->enable_pe_4 == false)
+	if (pinfo->enable_pe_4 == false
+	#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	&& pinfo->enable_pe_5 == false
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+	#endif
+	)
 		return false;
 
 	if (pinfo->pd_type == MTK_PD_CONNECT_PE_READY_SNK_APDO)

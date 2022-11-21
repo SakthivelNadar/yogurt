@@ -1199,12 +1199,28 @@ static void dis_micbias_work_callback(struct work_struct *work)
 }
 #endif /* end of #if PMIC_ACCDET_KERNEL */
 
+//prize wyq 20191226 add for type earphone-start
+#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)&&!defined(CONFIG_PRIZE_TYPEC_ACCDET)
+extern void typec_pinctrl_mic_reverse(void);
+#endif
+//prize wyq 20191226 add for type earphone-end
+//prize added by huarui, headset support, 20190111-start
+#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)&&defined(CONFIG_PRIZE_TYPEC_ACCDET)
+extern int typec_accdet_mic_detect(void);
+#endif
+//prize added by huarui, headset support, 20190111-end
+
 #if PMIC_ACCDET_KERNEL
 static void eint_work_callback(struct work_struct *work)
 #else
 static void eint_work_callback(void)
 #endif
 {
+	//prize wyq 20191226 add for type earphone-start
+#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)&&!defined(CONFIG_PRIZE_TYPEC_ACCDET)
+	int vol_val = 0;
+#endif
+	//prize wyq 20191226 add for type earphone-end
 	pr_info("accdet %s(),DCC EINT func\n", __func__);
 
 	if (cur_eint_state == EINT_PIN_PLUG_IN) {
@@ -1232,6 +1248,21 @@ static void eint_work_callback(void)
 #else
 		enable_accdet(ACCDET_PWM_EN);
 #endif
+	//prize wyq 20191226 add for type earphone-start
+	#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)&&!defined(CONFIG_PRIZE_TYPEC_ACCDET)
+		mdelay(2);
+		vol_val = pmic_get_auxadc_value(AUXADC_LIST_ACCDET);
+		printk("PRIZE AccdetVolt(%d) mic_pin reverse threshold(300)\n",vol_val);
+		if (vol_val < 300){
+			typec_pinctrl_mic_reverse();
+		}
+	#endif
+	//prize wyq 20191226 add for type earphone-start
+//prize added by huarui, headset support, 20190111-start
+	#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)&&defined(CONFIG_PRIZE_TYPEC_ACCDET)
+		typec_accdet_mic_detect();
+	#endif
+//prize added by huarui, headset support, 20190111-end
 	} else {
 		pr_info("accdet cur:plug-out, cur_eint_state = %d\n",
 			cur_eint_state);
@@ -1623,8 +1654,8 @@ void accdet_irq_handle(void)
 {
 	u32 eintID = 0;
 	u32 irq_status;
-	unsigned int moisture_vol = 0;
 #ifdef CONFIG_ACCDET_EINT_IRQ
+	unsigned int moisture_vol = 0;
 	eintID = get_triggered_eint();
 #endif
 	irq_status = pmic_read(ACCDET_IRQ_STS);
@@ -2480,3 +2511,64 @@ long mt_accdet_unlocked_ioctl(struct file *file, unsigned int cmd,
 	}
 	return 0;
 }
+
+//prize wyq 20191226 add for type earphone-start
+#if !defined(CONFIG_PRIZE_NO_PRIZE_TYPEC)
+//#ifdef CONFIG_USB_C_SWITCH
+void accdet_report_headset_extern(int state)
+{
+		printk("[Accdet]Enter accdet_report_headset_extern !!!!!!\n");
+	if (state) {
+		cable_type = HEADSET_NO_MIC;
+		send_accdet_status_event(cable_type, state);
+	} else {
+		//prize wyq 20191218
+		/* send input event before cable_type switch to no_device, which is invalid type for input */
+		send_accdet_status_event(cable_type, state);
+		cable_type = NO_DEVICE;
+	}
+	//switch_set_state((struct switch_dev *)&accdet_data, s_cable_type);
+	return;
+}
+EXPORT_SYMBOL(accdet_report_headset_extern);
+void accdet_eint_func_extern(int state)
+{
+	int ret = 0;
+	printk("[Accdet]Enter accdet_eint_func_extern !!!!!!\n");
+	cur_eint_state = state;
+	if (cur_eint_state == EINT_PIN_PLUG_IN)
+	{
+		mod_timer(&micbias_timer, jiffies + MICBIAS_DISABLE_TIMER);
+	}
+	printk("[Accdet]accdet_eint_func after cur_eint_state=%d\n", cur_eint_state);
+	ret = queue_work(eint_workqueue, &eint_work);
+	
+	accdet_report_headset_extern(state);
+	return;
+}
+EXPORT_SYMBOL(accdet_eint_func_extern);
+#endif
+//#endif
+//prize wyq 20191226 add for type earphone-end
+
+//prize added by huarui, headset support, 20190111-start
+#if defined(CONFIG_PRIZE_TYPEC_ACCDET)
+void accdet_eint_func_extern(int state)
+{
+	int ret = 0;
+
+	if (state == EINT_PIN_PLUG_OUT){	//OUT=0 IN=1
+		cur_eint_state = EINT_PIN_PLUG_OUT;
+		mod_timer(&micbias_timer, jiffies + MICBIAS_DISABLE_TIMER);
+	}else{
+		cur_eint_state = EINT_PIN_PLUG_IN;
+	}
+
+	pr_info("accdet %s(), cur_eint_state=%d\n", __func__, cur_eint_state);
+	ret = queue_work(eint_workqueue, &eint_work);
+	return;
+}
+EXPORT_SYMBOL(accdet_eint_func_extern);
+#endif
+//prize added by huarui, headset support, 20190111-end
+

@@ -33,6 +33,9 @@
 #include <mtk_gauge_time_service.h>
 #include "mtk_battery_internal.h"
 
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_VIETNAM) || defined(CONFIG_PRIZE_CHARGE_CURRENT_CTRL_GIGAST) || defined(CONFIG_PRIZE_CHARGE_CTRL_BDI)
+#include <mt-plat/mtk_boot.h>  //prize-chj-2019-06-15 Low temperature negative 20 degree shutdown
+#endif
 
 struct shutdown_condition {
 	bool is_overheat;
@@ -537,7 +540,26 @@ int mtk_power_misc_psy_event(
 			psy, POWER_SUPPLY_PROP_TEMP, &val);
 		if (!ret) {
 			tmp = val.intval / 10;
+//prize-chj-2019-06-15 Low temperature negative 20 degree shutdown start
+			bm_err("battery temperature = %d \n",tmp);
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_VIETNAM) || defined(CONFIG_PRIZE_CHARGE_CURRENT_CTRL_GIGAST) || defined(CONFIG_PRIZE_CHARGE_CTRL_BDI)
+			if ((tmp >= BATTERY_SHUTDOWN_TEMPERATURE) || (tmp <= BATTERY_SHUTDOWN_LOW_TEMPERATURE)) {				
+				if (get_boot_mode() == RECOVERY_BOOT) {
+					bm_err(
+					"recovery battery temperature >= %d",
+					tmp);
+					return NOTIFY_DONE;
+				}
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_BDI)
+               if (is_battery_init_done() == false){
+				  bm_err("battery_probe initialization is not complete; battery temperature >= %d",tmp);
+					return NOTIFY_DONE;
+			   }
+#endif
+#else
 			if (tmp >= BATTERY_SHUTDOWN_TEMPERATURE) {
+#endif
+//prize-chj-2019-06-15 Low temperature negative 20 degree shutdown end
 				bm_err(
 					"battery temperature >= %d,shutdown",
 					tmp);

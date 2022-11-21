@@ -61,16 +61,17 @@ struct imgsensor_struct {
 	kal_uint16 dummy_pixel; /* current dummypixel */
 	kal_uint16 dummy_line; /* current dummline */
 
-	kal_uint16 current_fps; /* current max fps */
-	kal_bool   autoflicker_en; /* record autoflicker enable or disable */
-	kal_bool test_pattern; /* record test pattern mode or not */
-	enum MSDK_SCENARIO_ID_ENUM current_scenario_id;/* current scenario id */
-	/* ihdr mode 0: disable, 1: ihdr, 2:mVHDR, 9:zigzag */
-	kal_uint8  ihdr_mode;
-	/* HDR mODE : 0: disable HDR, 1:IHDR, 2:HDR, 9:ZHDR */
-	kal_uint8 hdr_mode;
-	kal_uint8 i2c_write_id; /* record current sensor's i2c write id */
-	kal_uint8  AE_binning_type;
+	kal_uint16 current_fps;		/*current max fps*/
+	kal_bool   autoflicker_en;	/*record autoflicker enable or disable*/
+	kal_bool test_pattern;		/*record test pattern mode or not*/
+	enum MSDK_SCENARIO_ID_ENUM current_scenario_id;/*current scenario id*/
+	kal_uint8  ihdr_mode;		/* ihdr mode 0: disable,
+					 * 1: ihdr, 2:mVHDR,9:zigzag
+					 */
+	kal_uint8 hdr_mode;		/* HDR mODE : 0: disable
+					 * HDR, 1:IHDR, 2:HDR, 9:ZHDR
+					 */
+	kal_uint8 i2c_write_id;		/*record current sensor's i2c write id*/
 };
 
 /* SENSOR PRIVATE STRUCT FOR CONSTANT*/
@@ -83,7 +84,8 @@ struct imgsensor_info_struct {
 	kal_uint16 sensor_ver;
 	kal_uint32 checksum_value; /* checksum value for Camera Auto Test */
 	struct imgsensor_mode_struct pre;
-	struct imgsensor_mode_struct pre_3HDR;
+
+	/*capture scenario relative information*/
 	struct imgsensor_mode_struct cap;
 	struct imgsensor_mode_struct cap1;
 	struct imgsensor_mode_struct cap2;
@@ -136,8 +138,6 @@ extern int iReadRegI2C(u8 *a_pSendData, u16 a_sizeSendData,
 extern int iWriteRegI2C(u8 *a_pSendData, u16 a_sizeSendData, u16 i2cId);
 extern int iReadReg(u16 a_u2Addr, u8 *a_puBuff, u16 i2cId);
 extern int iWriteReg(u16 a_u2Addr, u32 a_u4Data, u32 a_u4Bytes, u16 i2cId);
-int iBurstWriteReg_multi(u8 *pData, u32 bytes, u16 i2cId,
-			 u16 transfer_length, u16 timing);
 extern void kdSetI2CSpeed(u16 i2cSpeed);
 
 extern struct mutex sensor_eeprom_lock;

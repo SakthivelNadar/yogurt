@@ -23,7 +23,9 @@ MTK_CUSTOM_PATH  := $(srctree)/drivers/misc/mediatek
 
 subdir-ccflags-y += -I$(MTK_CUSTOM_PATH)/lens/main/inc
 subdir-ccflags-y += -I$(MTK_CUSTOM_PATH)/lens/main/common/lc898122af
+#prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-start
 subdir-ccflags-y += -I$(MTK_CUSTOM_PATH)/lens/main/common/dw9800waf
+#prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-end
 subdir-ccflags-y += -I$(MTK_CUSTOM_PATH)/lens/main/common/lc898212xdaf/inc
 ifeq ($(CONFIG_MTK_LENS_BU63165AF_SUPPORT), y)
   subdir-ccflags-y += -I$(MTK_CUSTOM_PATH)/lens/main/common/bu63165af/inc
@@ -41,7 +43,9 @@ MAIN_CFILES  += common/bu6429af/BU6429AF.c
 MAIN_CFILES  += common/bu6429af/bu64748af.c
 MAIN_CFILES  += common/bu6429af/bu64748_function.c
 MAIN_CFILES += common/dw9714af/DW9714AF.c
+#prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-start
 MAIN_CFILES += common/dw9800waf/DW9800WAF.c
+#prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-end
 MAIN_CFILES  += common/dw9814af/DW9814AF.c
 MAIN_CFILES  += common/dw9718af/DW9718AF.c
 MAIN_CFILES  += common/dw9718saf/DW9718SAF.c
@@ -73,6 +77,11 @@ MAIN_CFILES  += common/bu63169af/OIS_func.c
 MAIN_CFILES  += common/bu63169af/OIS_main.c
 MAIN_CFILES  += common/bu63169af/OIS_user.c
 endif
+#/*prize  add  for main af by zhuzhengjiang    20191018-start*/
+ifeq ($(CONFIG_MTK_LENS_DW9800WAF_SUPPORT), y)
+MAIN_CFILES  += common/dw9800waf/DW9800WAF.c
+endif
+#/*prize  add  for main af by zhuzhengjiang    20191018-end*/
 
 obj-m := mainaf.o
 mainaf-objs := $(MAIN_CFILES:.c=.o)
@@ -85,7 +94,9 @@ obj-y  += common/bu6424af/
 obj-y  += common/bu6429af/
 obj-y  += common/bu64748af/
 obj-y  += common/dw9714af/
+#prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-start
 obj-y  += common/dw9800waf/
+#prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-end
 obj-y  += common/dw9814af/
 obj-y  += common/dw9718af/
 obj-y  += common/dw9718saf/
@@ -100,6 +111,11 @@ obj-y  += common/lc898217afc/
 obj-y  += common/lc898122af/
 obj-y  += common/wv511aaf/
 obj-y  += common/ak7371af/
+#/*prize  add  for main af by zhuzhengjiang    20191018-start*/
+ifeq ($(CONFIG_MTK_LENS_DW9800WAF_SUPPORT), y)
+  obj-y  += common/dw9800waf/
+endif
+#/*prize  add  for main af by zhuzhengjiang    20191018-end*/
 ifeq ($(CONFIG_MTK_LENS_BU63165AF_SUPPORT), y)
   obj-y  += common/bu63165af/
 else

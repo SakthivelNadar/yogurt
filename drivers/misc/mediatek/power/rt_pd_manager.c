@@ -22,7 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/pm.h>
 #include <linux/cpumask.h>
-
+#include <linux/delay.h>
 #include "tcpm.h"
 
 #include <mt-plat/upmu_common.h>
@@ -159,6 +159,18 @@ bool mtk_is_pep30_en_unlock(void)
 	return false;
 }
 
+//prize hushilun add anolog earthphone b
+#if !defined(CONFIG_PRIZE_NO_PRIZE_TYPEC)
+extern void typec_pinctrl_sel(int state);
+extern void typec_pinctrl_mic(int state);
+#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)
+extern void typec_pinctrl_mic_reverse(void);
+#endif
+bool g_acc_connected = false;
+extern void accdet_eint_func_extern(int state);
+#endif
+//hushilun add anolog earthphone e
+
 static int pd_tcp_notifier_call(struct notifier_block *nb,
 					unsigned long event, void *data)
 {
@@ -249,10 +261,50 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 			/* AUDIO plug in */
 			pr_info("%s audio plug in\n", __func__);
 
+			//prize hushilun add anolog earthphone b
+#if !defined(CONFIG_PRIZE_NO_PRIZE_TYPEC)
+#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)
+			g_acc_connected = true;
+			typec_pinctrl_sel(!!g_acc_connected);
+			accdet_eint_func_extern(!!g_acc_connected);
+			typec_pinctrl_sel(!g_acc_connected);
+#else
+		     /* DO IVVI EVENT */
+		     printk("tronchen case TCP_NOTIFY_TYPEC_STATE: TYPEC  plug in!\n");
+		     //  mutex_lock(&tcpc_usb_connect_lock);
+		 
+		    //  tcpc_usb_connected = true;
+		    //  mutex_unlock(&tcpc_usb_connect_lock);
+		    //accdet_ap_eint_func_extern(tcpc_usb_connected);
+		 
+		     g_acc_connected = true;
+		     typec_pinctrl_sel(!!g_acc_connected);
+		     msleep(50);
+		     typec_pinctrl_mic(!!g_acc_connected);
+		     accdet_eint_func_extern(!!g_acc_connected);
+		     msleep(150);
+		     typec_pinctrl_sel(!g_acc_connected);													 																 
+#endif
+#endif
+			//prize hushilun add anolog earthphone e
+			
 		} else if (noti->typec_state.old_state == TYPEC_ATTACHED_AUDIO
 			&& noti->typec_state.new_state == TYPEC_UNATTACHED) {
 			/* AUDIO plug out */
 			pr_info("%s audio plug out\n", __func__);
+
+			//prize hushilun add anolog earthphone b
+#if !defined(CONFIG_PRIZE_NO_PRIZE_TYPEC)
+			g_acc_connected = false;
+#if defined(CONFIG_PRIZE_SWITCH_SGM3798_SUPPORT)
+			typec_pinctrl_mic_reverse();
+#else
+			typec_pinctrl_mic(!!g_acc_connected);
+#endif
+			//typec_pinctrl_sel(!g_acc_connected);
+			accdet_eint_func_extern(!!g_acc_connected);
+#endif
+			//hushilun add anolog earthphone e
 		}
 		break;
 	case TCP_NOTIFY_PD_STATE:

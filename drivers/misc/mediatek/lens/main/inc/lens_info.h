@@ -45,7 +45,6 @@
 #define AFDRV_DW9718AF "DW9718AF"
 #define AFDRV_DW9718SAF "DW9718SAF"
 #define AFDRV_DW9719TAF "DW9719TAF"
-#define AFDRV_DW9800WAF "DW9800WAF"
 #define AFDRV_DW9814AF "DW9814AF"
 #define AFDRV_FP5510E2AF "FP5510E2AF"
 #define AFDRV_FM50AF "FM50AF"
@@ -65,7 +64,9 @@
 #define AFDRV_MT9P017AF "MT9P017AF"
 #define AFDRV_OV8825AF "OV8825AF"
 #define AFDRV_WV511AAF "WV511AAF"
-
+/*prize  add  for main af by zhuzhengjiang    20191018-start*/
+#define AFDRV_DW9800WAF "DW9800WAF"
+/*prize  add  for main af by zhuzhengjiang    20191018-end*/
 /* Structures */
 struct stAF_MotorInfo {
 	/* current position */

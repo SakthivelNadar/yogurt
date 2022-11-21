@@ -28,7 +28,11 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
-
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+#include <linux/delay.h>
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 #include "../inc/mt6360_pmu.h"
 #include "../inc/mt6360_pmu_adc.h"
 
@@ -116,6 +120,12 @@ static int mt6360_adc_read_raw(struct iio_dev *iio_dev,
 					 MT6360_PMU_ADC_CONFIG, 2, tmp);
 	if (ret < 0)
 		goto err_adc_init;
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	if(chan->channel == TS_CHANNEL)
+		msleep(100);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 	start_t = ktime_get();
 	predict_end_t = ktime_add_ms(mpai->last_off_timestamps[chan->channel],
 				     50);

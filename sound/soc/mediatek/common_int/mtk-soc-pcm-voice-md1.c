@@ -400,8 +400,12 @@ static int mtk_voice1_prepare(struct snd_pcm_substream *substream)
 			  Soc_Aud_AFE_IO_Block_I2S1_DAC_2);
 
 	/* start I2S DAC out */
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if !defined(CONFIG_PRIZE_I2S1_ADC)
 	SetI2SDacOut(substream->runtime->rate, false,
 		     Soc_Aud_I2S_WLEN_WLEN_16BITS);
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
 	SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
 	SetI2SDacEnable(true);
 

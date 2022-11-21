@@ -131,6 +131,10 @@ static int EEPROM_get_cmd_info(unsigned int sensorID,
 				cmdInfo->i2cAddr = pCamCalList[i].slaveID >> 1;
 				cmdInfo->readCMDFunc =
 					pCamCalList[i].readCamCalData;
+				/*prize add by zhengjiang.zhu for dual camea calibration write otp 20191205-start*/
+				cmdInfo->writeCMDFunc =
+					pCamCalList[i].writeCamCalData;
+				/*prize add by zhengjiang.zhu for dual camea calibration write otp  20191205-end*/
 				cmdInfo->maxEepromSize =
 					pCamCalList[i].maxEepromSize;
 

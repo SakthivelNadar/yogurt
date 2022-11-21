@@ -1621,6 +1621,30 @@ static int rt9465_probe(struct i2c_client *i2c,
 
 	chr_info("%s: successfully\n", __func__);
 
+//add by mahuiyin 20190410 start
+{
+	extern int is_chg2_exist;
+		bool is_chip_en = false;
+	
+		is_chip_en = __rt9465_is_chip_en(info);
+	
+		if(!is_chip_en)
+			__rt9465_enable_chip(info, true);
+	
+		if (!rt9465_is_hw_exist(info)) {
+			is_chg2_exist = 0;
+			dev_info(info->dev, "%s: no rt9465 exists\n", __func__);
+		} else {
+			is_chg2_exist = 1;
+			dev_info(info->dev, "%s: rt9465 exists\n", __func__);
+		}
+	
+		if(!is_chip_en)
+			__rt9465_enable_chip(info, false);
+}
+//add by mahuiyin 20190410 end
+
+
 	return ret;
 
 err_register_irq:

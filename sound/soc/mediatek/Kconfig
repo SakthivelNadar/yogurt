@@ -262,3 +262,59 @@ config SND_SOC_MTK_AUDIO_DSP
 	  that can be used with other platforms
 	  Select Y if you have such device.
 	  If unsure select "N".
+
+
+
+#PRIZE
+config AW8155_SUPPORT
+    bool "AW8155_SUPPORT"
+	default n
+	help
+        If you say Y, enable AW8155_SUPPORT.
+
+config AW8155_MODE
+	depends on AW8155_SUPPORT
+	int "AW8155 extspeaker mode"
+	range 1 4
+	default 2
+	help
+		Use to set AW8155 audio amplifier mode.
+			1 => 0.65w
+		    2 => 0.85w
+		    3 => 0.85w
+
+config AW8736_SUPPORT
+    bool "AW8736_SUPPORT"
+	default n
+	help
+        If you say Y, enable AW8736_SUPPORT.
+
+config AW8736_MODE
+	depends on AW8736_SUPPORT
+	int "AW8736 extspeaker mode"
+	range 1 4
+	default 3
+	help
+		Use to set AW8736 audio amplifier mode.
+			1 => 1.2w
+		    2 => 1w
+		    3 => 0.8w
+
+config AW8733_SUPPORT
+    bool "AW8733_SUPPORT"
+	default n
+	help
+        If you say Y, enable AW8733_SUPPORT.
+
+config AW8733_MODE
+	depends on AW8733_SUPPORT
+	int "AW8733 extspeaker mode"
+	range 1 4
+	default 3
+	help
+		Use to set AW8733 audio amplifier mode.
+			1 => 12db
+		    2 => 16db NCN
+		    3 => 24db
+			4 => 27.5db NCN
+

@@ -83,6 +83,10 @@ static struct stAF_OisPosInfo OisPosInfo;
 /* ------------------------- */
 
 static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
+/*prize  add  for main2 af by huarui    20191018-start*/
+	{1, AFDRV_DW9714AF, DW9714AF_SetI2Cclient, DW9714AF_Ioctl,
+	 DW9714AF_Release, DW9714AF_GetFileName, NULL},
+/*prize  add  for main2 af by huarui    20191018-end*/
 	{1, AFDRV_LC898212XDAF_F, LC898212XDAF_F_SetI2Cclient,
 	 LC898212XDAF_F_Ioctl, LC898212XDAF_F_Release,
 	 LC898212XDAF_F_GetFileName, NULL},

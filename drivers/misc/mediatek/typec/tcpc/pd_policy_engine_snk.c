@@ -58,6 +58,13 @@ void pe_snk_startup_entry(struct pd_port *pd_port)
 	pd_put_pe_event(pd_port, PD_PE_RESET_PRL_COMPLETED);
 }
 
+/*prize add by sunshuai for A-C 30w charge 20201109-start */
+#ifdef CONFIG_PRIZE_ATOC_TYPEC_CHARGE
+void pe_snk_discovery_entry(struct pd_port *pd_port)
+{
+	pd_enable_vbus_valid_detection(pd_port, true);
+}
+#else
 void pe_snk_discovery_entry(struct pd_port *pd_port)
 {
 	unsigned long timeout;
@@ -74,6 +81,8 @@ void pe_snk_discovery_entry(struct pd_port *pd_port)
 	if (chg_type == CHARGER_UNKNOWN)
 		PE_INFO("BC1.2 TIMEOUT\r\n");
 }
+#endif/*CONFIG_PRIZE_ATOC_TYPEC_CHARGE */
+/*prize add by sunshuai for A-C 30w charge 20201109-end */
 
 void pe_snk_wait_for_capabilities_entry(
 				struct pd_port *pd_port)

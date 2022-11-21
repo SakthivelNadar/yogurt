@@ -96,7 +96,7 @@ struct imgsensor_struct {
 	kal_bool autoflicker_en;/* record autoflicker enable or disable */
 	kal_bool test_pattern;	/* record test pattern mode or not */
 	enum MSDK_SCENARIO_ID_ENUM current_scenario_id;/* current scenario */
-	kal_uint8 hdr_mode;	/* HDR mode */
+    kal_uint8  ihdr_mode;                //ihdr enable or disable
 	kal_uint8 pdaf_mode;	/* ihdr enable or disable */
 	kal_uint8 i2c_write_id;	/* record current sensor's i2c write id */
 };
@@ -111,6 +111,7 @@ struct imgsensor_info_struct {
 
 	/* capture scenario relative information */
 	struct imgsensor_mode_struct cap;
+	struct imgsensor_mode_struct cap1;     //capture for PIP 24fps relative information
 
 	/* normal video  scenario relative information */
 	struct imgsensor_mode_struct normal_video;
@@ -156,7 +157,12 @@ struct imgsensor_info_struct {
 
 	/* enter slim video delay frame num */
 	kal_uint8 slim_video_delay_frame;
-
+    kal_uint8  custom1_delay_frame;     //enter custom1 delay frame num
+    kal_uint8  custom2_delay_frame;     //enter custom1 delay frame num
+    kal_uint8  custom3_delay_frame;     //enter custom1 delay frame num
+    kal_uint8  custom4_delay_frame;     //enter custom1 delay frame num
+    kal_uint8  custom5_delay_frame;     //enter custom1 delay frame num
+  
 	kal_uint8 margin;	/* sensor framelength & shutter margin */
 	kal_uint32 min_shutter;	/* min shutter */
 
@@ -213,7 +219,7 @@ extern int iWriteRegI2CTiming(
 	u16 timing);
 
 
-extern void read_imx499_eeprom(void);
+//extern void read_imx499_eeprom(void);
 int iBurstWriteReg_multi(
 	u8 *pData,
 	u32 bytes,

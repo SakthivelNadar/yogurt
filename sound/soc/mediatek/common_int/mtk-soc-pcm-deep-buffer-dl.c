@@ -428,8 +428,12 @@ static int mtk_deep_buffer_dl_prepare(struct snd_pcm_substream *substream)
 		    false) {
 			SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC,
 					    true);
+		//prize add by huarui, add igo ig1202 codec, 20200103 begin
+		#if !defined(CONFIG_PRIZE_I2S1_ADC)
 			SetI2SDacOut(substream->runtime->rate,
 				     deep_buffer_dl_hdoutput, mI2SWLen);
+		#endif
+		//prize add by huarui, add igo ig1202 codec, 20200103 end
 			SetI2SDacEnable(true);
 		} else {
 			SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC,

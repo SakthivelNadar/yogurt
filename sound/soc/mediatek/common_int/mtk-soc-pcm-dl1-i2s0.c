@@ -78,14 +78,42 @@ static int hdoutput_control;
 const char *const i2s0_SIDEGEN[] = {"Off",     "On8000",  "On16000",
 				    "On32000", "On44100", "On48000",
 				    "On96000", "On192000"};
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if defined(CONFIG_PRIZE_I2S1_ADC)
+//mtk add hbb
+static int mi2s_1_2_sync;
+const char * const i2s_1_2_sync[] = {
+	"Off", "On8000", "On16000", "On32000", "On44100", "On48000", "On96000", "On192000"};
+//mtk add end
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
+				    
 const char *const i2s0_HD_output[] = {"Off", "On"};
 const char *const ExtCodec_EchoRef_Routing[] = {"Off", "MD1", "MD3", "SCP"};
+
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if defined(CONFIG_PRIZE_I2S1_ADC)
+//mtk add hbb
+static unsigned int I2s1_2_set_count = 0;
+const char * const I2s1_2_set[] = {"Off", "On"};
+static int i2s2_input_control;
+const char * const i2s2_input[] = {"Off", "On"};
+//mtk add end
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
 
 static const struct soc_enum Audio_i2s0_Enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(i2s0_SIDEGEN), i2s0_SIDEGEN),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(i2s0_HD_output), i2s0_HD_output),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ExtCodec_EchoRef_Routing),
 			    ExtCodec_EchoRef_Routing),
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if defined(CONFIG_PRIZE_I2S1_ADC)
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(i2s_1_2_sync), i2s_1_2_sync),     //mtk add hbb
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(i2s2_input), i2s2_input),     //hbb
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(I2s1_2_set), I2s1_2_set), 
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
 };
 
 static int Audio_i2s0_SideGen_Get(struct snd_kcontrol *kcontrol,
@@ -322,6 +350,199 @@ i2s_config_done:
 	return 0;
 }
 
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if defined(CONFIG_PRIZE_I2S1_ADC)
+static int Audio_i2s1_2_count_reset_Get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("Audio_i2s1_2_count_reset_Get = %d\n", I2s1_2_set_count);
+	ucontrol->value.integer.value[0] = I2s1_2_set_count;
+	return 0;
+}
+
+//mtk add
+static int Audio_i2s1_2_count_reset_Set(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	if (ucontrol->value.enumerated.item[0] > ARRAY_SIZE(I2s1_2_set)) {
+		pr_err("return -EINVAL\n");
+		return -EINVAL;
+	}
+	I2s1_2_set_count = ucontrol->value.integer.value[0];
+	pr_debug("%s(),reset count. I2s1_2_set_count = %d",
+		 __func__,
+		 I2s1_2_set_count);
+	return 0;
+}
+// hbb
+static int Audio_i2s_1_2_sync_Get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("Audio_i2s_1_2_sync_Get = %d\n", mi2s_1_2_sync);
+	ucontrol->value.integer.value[0] = mi2s_1_2_sync;
+	return 0;
+}
+
+//mtk add
+static int Audio_i2s_1_2_sync_Set(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	static int samplerate;
+	unsigned int  u32AudioI2sOut = 0;
+	unsigned int  u32Audio2ndI2sIn = 0;
+
+	AudDrv_Clk_On();
+
+	if (ucontrol->value.enumerated.item[0] > ARRAY_SIZE(i2s_1_2_sync)) {
+		pr_err("return -EINVAL\n");
+		return -EINVAL;
+	}
+	mi2s_1_2_sync = ucontrol->value.integer.value[0];
+	pr_debug("%s(), mi2s_1_2_sync = %d, always_hd = %d\n",
+		 __func__,
+		 mi2s_1_2_sync,
+		 mtk_soc_always_hd);
+
+	/* Set SmartPa i2s by platform. Return false if no platform implement, then use default i2s3/0.*/
+	//if (get_afe_platform_ops()->set_smartpa_i2s != NULL) {
+	//	ret = get_afe_platform_ops()->set_smartpa_i2s(mi2s0_sidegen_control,
+	//						      hdoutput_control,
+	//						      extcodec_echoref_control,
+	//						      mtk_soc_always_hd);
+	//	goto i2s_config_done;
+	//}
+
+	if (mi2s_1_2_sync) {
+		I2s1_2_set_count = I2s1_2_set_count +1;
+		printk("[hbb_audio]%s,I2s1_2_set_count = %d\n",__func__,I2s1_2_set_count);
+		
+		if (I2s1_2_set_count == 1) {
+			
+		    switch (mi2s_1_2_sync) {
+		    case 1:
+			    samplerate = 8000;
+			    break;
+		    case 2:
+			    samplerate = 16000;
+			    break;
+		    case 3:
+			    samplerate = 32000;
+			    break;
+		    case 4:
+			    samplerate = 44100;
+			    break;
+		    case 5:
+			    samplerate = 48000;
+			    break;
+		    case 6:
+			    samplerate = 96000;
+			    break;
+		    case 7:
+			    samplerate = 192000;
+			    break;
+		    default:
+			    pr_err("%s, mi2s_1_2_sync error, return -EINVAL\n", __func__);
+			    return false;
+		    }
+    //barry add
+		    //SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I00,
+				      //Soc_Aud_InterConnectionOutput_O09);
+		    //SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I01,
+				      //Soc_Aud_InterConnectionOutput_O10);
+    //barry end
+		    AudDrv_Clk_On();
+		    if (!mtk_soc_always_hd) {
+			    EnableALLbySampleRate(samplerate);
+			    EnableAPLLTunerbySampleRate(samplerate);
+		    }
+
+		    Afe_Set_Reg(AFE_I2S_CON1, 0x0, 0x1); /* disable I2S1 */
+		    Afe_Set_Reg(AFE_I2S_CON2, 0x0, 0x1); /* disable I2S2 */
+		    Afe_Set_Reg(AUDIO_TOP_CON1, 0x1 << 5,  0x1 << 5); /* I2S1 clock-gated */
+		    Afe_Set_Reg(AUDIO_TOP_CON1, 0x1 << 6,  0x1 << 6); /* I2S2 clock-gated */
+            Afe_Set_Reg(AFE_DAC_CON1, 0xa << 8,  0xf << 8);//I2S samplerate sync
+
+		    /* I2S2 Input config */
+		    SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN, true);
+		    u32Audio2ndI2sIn = 0;
+		    u32Audio2ndI2sIn |= (Soc_Aud_LR_SWAP_NO_SWAP << 31);
+		    u32Audio2ndI2sIn |= (Soc_Aud_INV_LRCK_NO_INVERSE << 23);
+		    u32Audio2ndI2sIn |= (0 << 22);
+		    u32Audio2ndI2sIn |= (0 << 21);
+		    u32Audio2ndI2sIn |= (0 << 20);
+		    u32Audio2ndI2sIn |= (Soc_Aud_LOW_JITTER_CLOCK << 12);
+		    u32Audio2ndI2sIn |= (SampleRateTransform(samplerate, Soc_Aud_Digital_Block_I2S_IN) << 8);
+		    u32Audio2ndI2sIn |= (Soc_Aud_I2S_FORMAT_I2S << 3);
+		    u32Audio2ndI2sIn |= (Soc_Aud_I2S_WLEN_WLEN_32BITS << 1);
+		    Afe_Set_Reg(AFE_I2S_CON2, u32Audio2ndI2sIn, MASK_ALL);
+
+		    /* I2S1 output config */
+		    SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
+		    u32AudioI2sOut = SampleRateTransform(samplerate, Soc_Aud_Digital_Block_I2S_OUT_2) << 8;
+		    u32AudioI2sOut |= Soc_Aud_I2S_FORMAT_I2S << 3;		/* us3 I2s format */
+		    u32AudioI2sOut |= Soc_Aud_I2S_WLEN_WLEN_32BITS << 1;	/* 32 BITS */
+		    u32AudioI2sOut |= Soc_Aud_LOW_JITTER_CLOCK << 12;
+		    Afe_Set_Reg(AFE_I2S_CON1, u32AudioI2sOut, AFE_MASK_ALL);	/* set I2S3 configuration */
+
+		    /* I2S1 MCLK */
+		    SetCLkMclk(Soc_Aud_I2S1, samplerate);
+		    EnableI2SCLKDiv(Soc_Aud_I2S1_MCKDIV, true);
+
+		    Afe_Set_Reg(AFE_I2S_CON1, 0x1, 0x1); /* Enable I2S1 */
+		    Afe_Set_Reg(AFE_I2S_CON2, 0x1, 0x1); /* Enable I2S2 */
+		    Afe_Set_Reg(AUDIO_TOP_CON1, 0 << 5,  0x1 << 5); /* Clear I2S1 clock-gated */
+		    Afe_Set_Reg(AUDIO_TOP_CON1, 0 << 6,  0x1 << 6); /* Clear I2S2 clock-gated */
+
+		    pr_debug("%s(), Turn on. AFE_I2S_CON1=0x%x, AFE_I2S_CON2=0x%x",
+			     __func__, Afe_Get_Reg(AFE_I2S_CON1), Afe_Get_Reg(AFE_I2S_CON2));
+
+		    EnableAfe(true);
+	    }
+	} else {
+		I2s1_2_set_count = I2s1_2_set_count - 1;
+		printk("[hbb_audio]%s,I2s1_2_set_count = %d\n",__func__,I2s1_2_set_count);		
+		
+        if (I2s1_2_set_count == 0) {	
+		    SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, false);
+		    if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC) == false) {
+			    EnableI2SCLKDiv(Soc_Aud_I2S1_MCKDIV, false);
+			    Afe_Set_Reg(AFE_I2S_CON1, 0x0, 0x1);		/* Disable I2S1 */
+			    udelay(20);
+			    Afe_Set_Reg(AUDIO_TOP_CON1, 0x1 << 5,  0x1 << 5); /* I2S1 clock-gated */
+		    }
+
+		    SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN, false);
+		    if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN) == false) {
+			    Afe_Set_Reg(AFE_I2S_CON2, 0x0, 0x1); /* Disable I2S2 */
+			    udelay(20);
+			    Afe_Set_Reg(AUDIO_TOP_CON1, 0x1 << 6,  0x1 << 6); /* I2S2 clock-gated */
+		    }
+
+		    if (!mtk_soc_always_hd) {
+			    DisableAPLLTunerbySampleRate(samplerate);
+			    DisableALLbySampleRate(samplerate);
+		    }
+
+		    pr_debug("%s(), Turn off. AFE_I2S_CON1=0x%x, AFE_I2S_CON2=0x%x\n", __func__,
+				     Afe_Get_Reg(AFE_I2S_CON1), Afe_Get_Reg(AFE_I2S_CON2));
+		
+		    EnableAfe(false);
+
+		    AudDrv_Clk_Off();
+    //barry add
+		    //SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I00,
+            //  Soc_Aud_InterConnectionOutput_O09);
+		    //SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I01,
+            //  Soc_Aud_InterConnectionOutput_O10);
+    //barry end
+	    }
+	}
+	return 0;
+}
+//mtk add  hbb
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
+
 static int audio_always_hd_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
@@ -378,6 +599,39 @@ static int Audio_i2s0_hdoutput_Set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if defined(CONFIG_PRIZE_I2S1_ADC)
+// hbb
+static int Audio_i2s2_input_Get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("Audio_i2s2_input_Get = %d\n", i2s2_input_control);
+	ucontrol->value.integer.value[0] = i2s2_input_control;
+	return 0;
+}
+
+static int Audio_i2s2_input_Set(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("+%s()\n", __func__);
+	if (ucontrol->value.enumerated.item[0] > ARRAY_SIZE(i2s2_input)) {
+		pr_err("return -EINVAL\n");
+		return -EINVAL;
+	}
+
+	i2s2_input_control = ucontrol->value.integer.value[0];
+	if (i2s2_input_control)
+		Afe_Set_Reg(AFE_ADDA_TOP_CON0, 0x1, 0x1);
+	else
+		Afe_Set_Reg(AFE_ADDA_TOP_CON0, 0x0, 0x1);
+
+	pr_debug("+%s() i2s2_input_control: %d,AFE_ADDA_TOP_CON0=0x%x \n", __func__, i2s2_input_control, Afe_Get_Reg(AFE_ADDA_TOP_CON0));
+	return 0;
+}
+//hbb 
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
+
 static int Audio_i2s0_ExtCodec_EchoRef_Get(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
@@ -408,6 +662,16 @@ static const struct snd_kcontrol_new Audio_snd_i2s0_controls[] = {
 	SOC_ENUM_EXT("Audio_ExtCodec_EchoRef_Switch", Audio_i2s0_Enum[2],
 		     Audio_i2s0_ExtCodec_EchoRef_Get,
 		     Audio_i2s0_ExtCodec_EchoRef_Set),
+//prize add by huarui, add igo ig1202 codec, 20200103 begin
+#if defined(CONFIG_PRIZE_I2S1_ADC)
+	SOC_ENUM_EXT("Audio_i2s_1_2_sync",
+		     Audio_i2s0_Enum[3], Audio_i2s_1_2_sync_Get, Audio_i2s_1_2_sync_Set),     //mtk add  hbb
+	SOC_ENUM_EXT("Audio_i2s2_input",
+		     Audio_i2s0_Enum[4], Audio_i2s2_input_Get, Audio_i2s2_input_Set),   //mtk add  hbb
+	SOC_ENUM_EXT("Audio_i2s1_2_count_reset",
+		     Audio_i2s0_Enum[5], Audio_i2s1_2_count_reset_Get, Audio_i2s1_2_count_reset_Set),   //mtk add  hbb	
+#endif
+//prize add by huarui, add igo ig1202 codec, 20200103 end
 };
 
 static struct snd_pcm_hardware mtk_i2s0_hardware = {

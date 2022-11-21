@@ -115,8 +115,10 @@ static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
 	 LC898212XDAF_Release, LC898212XDAF_GetFileName, NULL},
 	{1, AFDRV_DW9814AF, DW9814AF_SetI2Cclient, DW9814AF_Ioctl,
 	 DW9814AF_Release, DW9814AF_GetFileName, NULL},
+//prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-start
 	{1, AFDRV_DW9800WAF, DW9800WAF_SetI2Cclient, DW9800WAF_Ioctl,
 	 DW9800WAF_Release, NULL, NULL},
+	 //prize add by liaojie for patch MTK_PATCH:t-alps-release-q0.mp1-V6 20191218-end
 	{1, AFDRV_FP5510E2AF, FP5510E2AF_SetI2Cclient, FP5510E2AF_Ioctl,
 	 FP5510E2AF_Release, FP5510E2AF_GetFileName, NULL},
 	{1, AFDRV_DW9718AF, DW9718AF_SetI2Cclient, DW9718AF_Ioctl,
@@ -137,6 +139,11 @@ static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
 	 LC898122AF_Release, LC898122AF_GetFileName, NULL},
 	{1, AFDRV_WV511AAF, WV511AAF_SetI2Cclient, WV511AAF_Ioctl,
 	 WV511AAF_Release, WV511AAF_GetFileName, NULL},
+/*prize  add  for main af by zhuzhengjiang    20191018-start*/
+	#ifdef CONFIG_MTK_LENS_DW9800WAF_SUPPORT
+		{1, AFDRV_DW9800WAF, DW9800WAF_SetI2Cclient, DW9800WAF_Ioctl, DW9800WAF_Release, NULL},
+	#endif
+/*prize  add  for main af by zhuzhengjiang    20191018-end*/
 };
 
 static struct stAF_DrvList *g_pstAF_CurDrv;
@@ -178,7 +185,7 @@ void AFRegulatorCtrl(int Stage)
 					regulator_get(lens_device, "vldo28");
 				#else
 				regVCAMAF =
-					regulator_get(lens_device, "vcamaf");
+					regulator_get(lens_device, "vldo28");/*prize  add  for main af by zhuzhengjiang    20191018-start*/
 				#endif
 
 				LOG_INF("[Init] regulator_get %p\n", regVCAMAF);

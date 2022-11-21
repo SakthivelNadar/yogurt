@@ -65,7 +65,9 @@
 #define KDIMGSENSOR_INVOKE_DRIVER_0     (0)
 #define KDIMGSENSOR_INVOKE_DRIVER_1     (1)
 #endif
-
+//prize add by zhuzhengjiang for mipi switch 20200904 start
+#define MIPI_SWITCH
+//prize add by zhuzhengjiang for mipi switch 20200904 end
 enum {
 	BINNING_NONE = 0,
 	BINNING_AVERAGED,

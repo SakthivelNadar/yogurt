@@ -29,14 +29,14 @@ enum IMGSENSOR_RETURN
 	/*imgsensor_hw_mt6306_open,*/
 	imgsensor_hw_mclk_open
 };
-
+// prize modify by zhuzhengjiang for camera 20200902 start
 struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 	{
 		IMGSENSOR_SENSOR_IDX_MAIN,
 		IMGSENSOR_I2C_DEV_0,
 		{
 			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
-			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AVDD},
+			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_AVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_DVDD},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_PDN},
@@ -49,19 +49,6 @@ struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 		IMGSENSOR_I2C_DEV_1,
 		{
 			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
-			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AVDD},
-			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
-			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_DVDD},
-			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_PDN},
-			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_RST},
-			{IMGSENSOR_HW_ID_NONE, IMGSENSOR_HW_PIN_NONE},
-		},
-	},
-	{
-		IMGSENSOR_SENSOR_IDX_MAIN2,
-		IMGSENSOR_I2C_DEV_2,
-		{
-			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_AVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DVDD},
@@ -71,8 +58,21 @@ struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 		},
 	},
 	{
-		IMGSENSOR_SENSOR_IDX_SUB2,
+		IMGSENSOR_SENSOR_IDX_MAIN2,
 		IMGSENSOR_I2C_DEV_1,
+		{
+			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AVDD},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DVDD},
+			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_PDN},
+			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_RST},
+			{IMGSENSOR_HW_ID_NONE, IMGSENSOR_HW_PIN_NONE},
+		},
+	},
+	{
+		IMGSENSOR_SENSOR_IDX_SUB2,
+		IMGSENSOR_I2C_DEV_0,
 		{
 			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AVDD},
@@ -88,7 +88,7 @@ struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 		IMGSENSOR_I2C_DEV_2,
 		{
 			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
-			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_AVDD},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DVDD},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_PDN},
@@ -99,7 +99,7 @@ struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 
 	{IMGSENSOR_SENSOR_IDX_NONE}
 };
-
+// prize modify by zhuzhengjiang for camera 20200902 end
 struct IMGSENSOR_HW_POWER_SEQ platform_power_sequence[] = {
 #ifdef MIPI_SWITCH
 	{
@@ -149,6 +149,137 @@ struct IMGSENSOR_HW_POWER_SEQ platform_power_sequence[] = {
 
 /* Legacy design */
 struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
+// prize modify by zhuzhengjiang for camera 20200902 start
+#if defined(S5KGM1ST_MIPI_RAW)
+        {
+                SENSOR_DRVNAME_S5KGM1ST_MIPI_RAW,
+                {
+                        {RST, Vol_Low, 0},
+                        {DVDD, Vol_High, 0},
+                        {AVDD, Vol_2800, 0},
+                        {DOVDD, Vol_1800, 0},
+                        {RST, Vol_High, 2},
+                        {SensorMCLK, Vol_High, 10},
+                },
+        },
+#endif
+#if defined(OV16A1Q_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV16A1Q_MIPI_RAW,
+		{
+			{SensorMCLK, Vol_High, 0},
+			{RST, Vol_Low, 0},
+			{DOVDD, Vol_1800, 1},
+			{AVDD, Vol_2800, 1},
+			{DVDD, Vol_1200, 5},
+			{RST, Vol_High, 2}
+		},
+	},
+#endif
+#if defined(OV16A10_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_OV16A10_MIPI_RAW,
+		{
+			{SensorMCLK, Vol_High, 0},
+			{RST, Vol_Low, 0},
+			{DOVDD, Vol_1800, 1},
+			{AVDD, Vol_2800, 1},
+			{DVDD, Vol_1200, 5},
+			{RST, Vol_High, 2}
+		},
+	},
+#endif
+#if defined(BF2253L_MIPI_RAW)
+	{SENSOR_DRVNAME_BF2253L_MIPI_RAW,
+		{
+			{RST, Vol_Low, 0},
+			{PDN, Vol_High, 0},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			//{DVDD, Vol_2800, 2},
+			//{AFVDD, Vol_2800, 1},
+			{PDN, Vol_Low, 2},
+			{RST, Vol_High, 5},
+		},
+	},
+#endif
+#if defined(BF2253LMACRO_MIPI_RAW)
+	{SENSOR_DRVNAME_BF2253LMACRO_MIPI_RAW,
+		{
+			{RST, Vol_Low, 0},
+			{PDN, Vol_High, 0},
+			{SensorMCLK, Vol_High, 0},
+			{DOVDD, Vol_1800, 0},
+			{AVDD, Vol_2800, 0},
+			//{DVDD, Vol_2800, 2},
+			//{AFVDD, Vol_2800, 1},
+			{PDN, Vol_Low, 2},
+			{RST, Vol_High, 5},
+		},
+	},
+#endif
+#if defined(GC5035_MIPI_RAW)
+		{
+			SENSOR_DRVNAME_GC5035_MIPI_RAW,
+			{
+				{SensorMCLK, Vol_High, 13},
+				{DOVDD, Vol_1800, 15},
+				{DVDD, Vol_1200, 15},
+				{AVDD, Vol_2800, 15},
+				{PDN, Vol_High, 14},
+				{RST, Vol_High, 11},
+			},
+		},
+#endif
+#if defined(GC8034SUB_MIPI_RAW)
+		{
+			SENSOR_DRVNAME_GC8034SUB_MIPI_RAW,
+			{
+				{SensorMCLK, Vol_High, 13},
+				{DOVDD, Vol_1800, 15},
+				{DVDD, Vol_1200, 15},
+				{AVDD, Vol_2800, 15},
+				{PDN, Vol_High, 14},
+				{RST, Vol_High, 11},
+			},
+		},
+#endif
+// prize modify by zhuzhengjiang for camera 20200902 end
+
+// prize modify by liaoxingen for camera 20200914 end
+#if defined(S5K4H7YX_MIPI_RAW)
+    {
+        SENSOR_DRVNAME_S5K4H7YX_MIPI_RAW,
+        {
+            {SensorMCLK, Vol_High, 0},
+            {DOVDD, Vol_1800, 1},
+            {DVDD, Vol_1200, 2},
+            {AVDD, Vol_2800, 1},
+            {PDN, Vol_Low, 0},
+            {PDN, Vol_High, 0},
+            {RST, Vol_Low, 0},
+            {RST, Vol_High, 1},
+        },
+    },
+#endif
+#if defined(S5K4H7YXSUB_MIPI_RAW)
+    {
+        SENSOR_DRVNAME_S5K4H7YXSUB_MIPI_RAW,
+        {
+            {SensorMCLK, Vol_High, 0},
+            {DOVDD, Vol_1800, 1},
+            {DVDD, Vol_1200, 2},
+            {AVDD, Vol_2800, 1},
+            {PDN, Vol_Low, 0},
+            {PDN, Vol_High, 0},
+            {RST, Vol_Low, 0},
+            {RST, Vol_High, 1},
+        },
+    },
+#endif
+// prize modify by liaoxingen for camera 20200914 end
+
 #if defined(IMX519_MIPI_RAW)
 	{
 		SENSOR_DRVNAME_IMX519_MIPI_RAW,

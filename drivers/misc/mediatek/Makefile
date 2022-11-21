@@ -148,6 +148,9 @@ obj-y += performance/
 obj-$(CONFIG_MEDIATEK_SOLUTION) += cmo/
 obj-$(CONFIG_MTK_VOW_SUPPORT)  += vow/
 obj-y += io_boost/
+#prize-add-pengzhipeng-20191014-start
+obj-$(CONFIG_MTK_SMARTPA_SOUND)	+= smartpa/
+#prize-add-pengzhipeng-20191014-end
 obj-y += mtprintk/
 ifneq ($(wildcard $(srctree)/drivers/misc/mediatek/met_drv/),)
 obj-y += met_drv/
@@ -156,7 +159,33 @@ obj-y += perf/
 obj-$(CONFIG_MTK_JPEG) += jpeg/
 obj-$(CONFIG_MTK_SPMTWAM) += twam/
 obj-$(CONFIG_MTK_LOW_POWER_MODULE) += lpm/
+#prize-add prize-wangyunqing-20181110-start
+obj-$(CONFIG_PRIZE_HARDWARE_INFO) += hardware_info/
+#prize-add prize-wangyunqing-20181110-end
+#prize add by lipengpeng 20191224 start
+obj-$(CONFIG_NFC_CHIP_SUPPORT) += nfc/
+#prize add by lipengpeng 20191224  end
 
+#/*zhengjiang.zhu@prize.Camera.Driver  2018/09/30  add for hall1120*/ 
+obj-$(CONFIG_PRIZE_STEP_MOTOR_ENABLE) += prize_step_motor/
+obj-$(CONFIG_SENSOR_HALL_MXM1120) += hall_m120/
+#/*zhengjiang.zhu@prize.Camera.Driver  2018/09/30  add for hall1120*/
+
+#prize added by chenjiaxi, prize_dual_camera driver, 20190111-start
+obj-$(CONFIG_PRIZE_DUAL_CAMERA_ENABLE) += prize_dual_camera/
+#prize added by chenjiaxi, prize_dual_camera driver, 20190111-end
+
+#/*prize add by zhengjiang.zhu@prize.Camera.Driver for TOF 20200316  start*/
+obj-$(CONFIG_STMVL53L1)			+= vl53L1/
+#/*prize add by zhengjiang.zhu@prize.Camera.Driver for TOF 20200316  start*/
 ifeq ($(CONFIG_MTK_HAVE_EXTERNAL_VENDOR_PATH),y)
 obj-y += ../../../../$(subst $\",,$(CONFIG_MTK_EXTERNAL_VENDOR_PATH))
 endif
+
+#prize add by huarui, prize drv build support 20200327 start
+obj-y += prize/
+#prize add by huarui, prize drv build support 20200327 end
+#prize add by huarui, prize drv build support 20200327 start
+obj-y += aw8695_haptic/
+#prize add by huarui, prize drv build support 20200327 end
+

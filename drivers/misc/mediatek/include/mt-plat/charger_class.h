@@ -27,6 +27,13 @@ enum adc_channel {
 	ADC_CHANNEL_TEMP_JC,
 	ADC_CHANNEL_USBID,
 	ADC_CHANNEL_TS,
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	ADC_CHANNEL_TBAT,
+	ADC_CHANNEL_VOUT,
+	ADC_CHANNEL_MAX,
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 };
 
 struct charger_properties {
@@ -118,7 +125,21 @@ struct charger_ops {
 	int (*kick_direct_charging_wdt)(struct charger_device *dev);
 	int (*set_direct_charging_ibusoc)(struct charger_device *dev, u32 uA);
 	int (*set_direct_charging_vbusov)(struct charger_device *dev, u32 uV);
-
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	int (*set_direct_charging_ibatoc)(struct charger_device *dev, u32 uA);
+	int (*set_direct_charging_vbatov)(struct charger_device *dev, u32 uV);
+	int (*set_direct_charging_vbatov_alarm)(struct charger_device *dev,
+						u32 uV);
+	int (*reset_direct_charging_vbatov_alarm)(struct charger_device *dev);
+	int (*set_direct_charging_vbusov_alarm)(struct charger_device *dev,
+						u32 uV);
+	int (*reset_direct_charging_vbusov_alarm)(struct charger_device *dev);
+	int (*is_direct_charging_vbuslowerr)(struct charger_device *dev,
+					     bool *err);
+	int (*init_direct_charging_chip)(struct charger_device *dev);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 	/* OTG */
 	int (*enable_otg)(struct charger_device *dev, bool en);
 	int (*enable_discharge)(struct charger_device *dev, bool en);
@@ -141,6 +162,12 @@ struct charger_ops {
 
 	int (*get_adc)(struct charger_device *dev, enum adc_channel chan,
 		       int *min, int *max);
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	int (*get_adc_accuracy)(struct charger_device *dev,
+				enum adc_channel chan, int *min, int *max);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 	int (*get_vbus_adc)(struct charger_device *dev, u32 *vbus);
 	int (*get_ibus_adc)(struct charger_device *dev, u32 *ibus);
 	int (*get_ibat_adc)(struct charger_device *dev, u32 *ibat);
@@ -156,6 +183,11 @@ struct charger_ops {
 	int (*enable_force_typec_otp)(struct charger_device *dev, bool en);
 	int (*enable_hidden_mode)(struct charger_device *dev, bool en);
 	int (*get_ctd_dischg_status)(struct charger_device *dev, u8 *status);
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	int (*enable_hz)(struct charger_device *dev, bool en);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 };
 
 static inline void *charger_dev_get_drvdata(
@@ -253,7 +285,12 @@ extern int charger_dev_reset_eoc_state(
 	struct charger_device *charger_dev);
 extern int charger_dev_safety_check(
 	struct charger_device *charger_dev, u32 polling_ieoc);
-
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+extern int charger_dev_enable_hz(
+	struct charger_device *charger_dev, bool en);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 /* PE+/PE+2.0 */
 extern int charger_dev_send_ta_current_pattern(
 	struct charger_device *charger_dev, bool is_increase);
@@ -277,6 +314,12 @@ extern int charger_dev_kick_direct_charging_wdt(
 	struct charger_device *charger_dev);
 extern int charger_dev_get_adc(struct charger_device *charger_dev,
 	enum adc_channel chan, int *min, int *max);
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+extern int charger_dev_get_adc_accuracy(struct charger_device *charger_dev,
+	enum adc_channel chan, int *min, int *max);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 /* Prefer use charger_dev_get_adc api */
 extern int charger_dev_get_vbus(
 	struct charger_device *charger_dev, u32 *vbus);
@@ -291,7 +334,27 @@ extern int charger_dev_set_direct_charging_ibusoc(
 	struct charger_device *charger_dev, u32 ua);
 extern int charger_dev_set_direct_charging_vbusov(
 	struct charger_device *charger_dev, u32 uv);
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+extern int charger_dev_set_direct_charging_ibatoc(
+	struct charger_device *charger_dev, u32 ua);
+extern int charger_dev_set_direct_charging_vbatov(
+	struct charger_device *charger_dev, u32 uv);
+extern int charger_dev_set_direct_charging_vbatov_alarm(
+	struct charger_device *charger_dev, u32 uv);
+extern int charger_dev_reset_direct_charging_vbatov_alarm(
+	struct charger_device *charger_dev);
+extern int charger_dev_set_direct_charging_vbusov_alarm(
+	struct charger_device *charger_dev, u32 uv);
+extern int charger_dev_reset_direct_charging_vbusov_alarm(
+	struct charger_device *charger_dev);
+extern int charger_dev_is_direct_charging_vbuslowerr(
+	struct charger_device *charger_dev, bool *err);
 
+extern int charger_dev_init_direct_charging_chip(
+	struct charger_device *charger_dev);
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 /* TypeC */
 extern int charger_dev_enable_usbid(struct charger_device *dev, bool en);
 extern int charger_dev_set_usbid_rup(struct charger_device *dev, u32 rup);

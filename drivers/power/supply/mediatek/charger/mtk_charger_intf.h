@@ -34,6 +34,11 @@ struct charger_manager;
 #include "mtk_pe_intf.h"
 #include "mtk_pe20_intf.h"
 #include "mtk_pe40_intf.h"
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+#include "mtk_pe50_intf.h"
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 #include "mtk_pdc_intf.h"
 #include "adapter_class.h"
 
@@ -77,7 +82,13 @@ do {								\
 #define	CHR_PE40_TUNING	(0x0009)
 #define	CHR_PE40_POSTCC	(0x000A)
 #define CHR_PE30	(0x000B)
-
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+#define CHR_PE50_READY	(0x000E)
+#define CHR_PE50_RUNNING	(0x000F)
+#define CHR_PE50	(0x0010)
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 /* charging abnormal status */
 #define CHG_VBUS_OV_STATUS	(1 << 0)
 #define CHG_BAT_OT_STATUS	(1 << 1)
@@ -100,6 +111,17 @@ enum {
 	CHARGER_DEV_NOTIFY_EOC,
 	CHARGER_DEV_NOTIFY_RECHG,
 	CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT,
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	CHARGER_DEV_NOTIFY_VBATOVP_ALARM,
+	CHARGER_DEV_NOTIFY_VBUSOVP_ALARM,
+	CHARGER_DEV_NOTIFY_IBATOCP,
+	CHARGER_DEV_NOTIFY_IBUSOCP,
+	CHARGER_DEV_NOTIFY_IBUSUCP_FALL,
+	CHARGER_DEV_NOTIFY_VOUTOVP,
+	CHARGER_DEV_NOTIFY_VDROVP,
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 };
 
 /*
@@ -133,6 +155,52 @@ enum bat_temp_state_enum {
 	BAT_TEMP_NORMAL,
 	BAT_TEMP_HIGH
 };
+
+//prize-add by sunshuai for vestel customer  requires charging to be controlled according to the battery specification 201900724 start
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_VIETNAM)
+enum charge_temperature_state_enum {
+	STEP_INIT = 0,
+	STEP_T1,
+	STEP_T2,
+	STEP_T3
+};
+
+struct battery_temperature_step_charge_data {
+	int current_step;//1: -5-20; 2: 20-45; 3:45-60
+	int start_step1_temp;// -5
+	int start_step2_temp;// 20
+	int start_step3_temp;// 45
+	int end_step3_temp;//60
+	int exit_step3_temp;//40
+    int temp_stp3_cv_voltage;//prize-add by sunshuai for for Vietnam customer  20200106
+};
+#endif
+//prize-add by sunshuai for vestel customer  requires charging to be controlled according to the battery specification 201900724 end
+
+/*prize-add by sunshuai for for gigast customer  20200706 start  */
+#ifdef CONFIG_PRIZE_CHARGE_CURRENT_CTRL_GIGAST
+enum charge_temperature_state_enum {
+	STEP_INIT = 0,
+	STEP_T1,
+	STEP_T2,
+	STEP_T3
+};
+
+struct battery_temperature_step_charge_data {
+	int current_step;//1: -5-15; 2: 15-45; 3:45-55
+	int start_step1_temp;// -5
+	int step1_max_current;
+	int start_step2_temp;// 15
+	int start_step3_temp;// 45
+	int step3_vot1_current;
+	int step3_vot2_current;
+	int enter_step3_battery_percentage;
+    int temp_stp3_cv_voltage;
+};
+#endif
+/*prize-add by sunshuai for for gigast customer  20200706 end  */
+
+
 
 struct battery_thermal_protection_data {
 	int sm;
@@ -291,6 +359,17 @@ struct charger_manager {
 	struct notifier_block chg2_nb;
 	struct charger_data chg2_data;
 
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	struct charger_device *dvchg1_dev;
+	struct notifier_block dvchg1_nb;
+	struct charger_data dvchg1_data;
+
+	struct charger_device *dvchg2_dev;
+	struct notifier_block dvchg2_nb;
+	struct charger_data dvchg2_data;
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 	struct adapter_device *pd_adapter;
 
 
@@ -351,7 +430,14 @@ struct charger_manager {
 	/* pe 4.0 */
 	bool enable_pe_4;
 	struct mtk_pe40 pe4;
-
+#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+	/* pe 5.0 */
+	bool enable_pe_5;
+	bool leave_pe5;
+	struct mtk_pe50 pe5;
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+#endif
 	/* type-C*/
 	bool enable_type_c;
 
@@ -391,6 +477,9 @@ struct charger_manager {
 
 	/* dynamic mivr */
 	bool enable_dynamic_mivr;
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_VIETNAM) || defined(CONFIG_PRIZE_CHARGE_CURRENT_CTRL_GIGAST)
+	struct battery_temperature_step_charge_data step_info;//prize-add by sunshuai for vestel customer  requires charging to be controlled according to the battery specification 201900724
+#endif
 };
 
 /* charger related module interface */

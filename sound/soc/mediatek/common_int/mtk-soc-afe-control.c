@@ -1571,7 +1571,11 @@ bool SetI2SDacEnable(bool bEnable)
 		EnableAfe(true);
 		SetADDAEnable(true);
 		SetDLSrcEnable(true);
+	//prize add by huarui, add igo ig1202 codec, 20200103 begin
+	#if !defined(CONFIG_PRIZE_I2S1_ADC)
 		Afe_Set_Reg(AFE_I2S_CON1, bEnable, 0x1);
+	#endif
+	//prize add by huarui, add igo ig1202 codec, 20200103 end
 	} else {
 		/* Disable DL SRC order: (reverse)
 		 * ADDA DL SRC (AFE_ADDA_DL_SRC2_CON0) ->
@@ -1579,7 +1583,11 @@ bool SetI2SDacEnable(bool bEnable)
 		 * AFE (AFE_DAC_CON0) -> DL clock (AUDIO_TOP_CON0)
 		 */
 		SetDLSrcEnable(false);
+	//prize add by huarui, add igo ig1202 codec, 20200103 begin
+	#if !defined(CONFIG_PRIZE_I2S1_ADC)
 		Afe_Set_Reg(AFE_I2S_CON1, bEnable, 0x1);
+	#endif
+	//prize add by huarui, add igo ig1202 codec, 20200103 end
 		SetADDAEnable(false);
 
 		/* should delayed 1/fs(smallest is 8k) = 125us before afe off */

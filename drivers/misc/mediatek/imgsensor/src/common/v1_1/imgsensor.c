@@ -56,10 +56,28 @@
 #include "imgsensor_ca.h"
 #endif
 
+//prize-lixuefeng-20150512-start
+#if defined(CONFIG_PRIZE_HARDWARE_INFO)
+#include "../../../hardware_info/hardware_info.h"
+extern struct hardware_info current_camera_info[5];
+#endif
+//prize-lixuefeng-20150512-end
 static DEFINE_MUTEX(gimgsensor_mutex);
 static DEFINE_MUTEX(gimgsensor_open_mutex);
 
 struct IMGSENSOR gimgsensor;
+
+//prize-huangzhanbin-20190319-add for dualcam-start
+#ifdef CONFIG_DUALCAM_CALI_RW
+struct device *gimgsensor_device;
+#endif
+//prize-huangzhanbin-20190319-add for dualcam-end
+
+/*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
+#if defined(CONFIG_PRIZE_STEP_MOTOR_ENABLE)
+extern int stepper_motor_onoff(unsigned int on_off);
+#endif
+/*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
 
 /******************************************************************************
  * Profiling
@@ -167,6 +185,12 @@ MINT32 imgsensor_sensor_open(struct IMGSENSOR_SENSOR *psensor)
 		ret = imgsensor_hw_power(&pimgsensor->hw,
 				psensor,
 				IMGSENSOR_HW_POWER_STATUS_ON);
+		/*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
+		#if defined(CONFIG_PRIZE_STEP_MOTOR_ENABLE)
+		if (psensor->inst.sensor_idx == 1 )
+		stepper_motor_onoff(IMGSENSOR_HW_POWER_STATUS_ON);
+		#endif
+		/*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
 
 		if (ret != IMGSENSOR_RETURN_SUCCESS) {
 			PK_PR_ERR("[%s]", __func__);
@@ -195,6 +219,12 @@ MINT32 imgsensor_sensor_open(struct IMGSENSOR_SENSOR *psensor)
 #endif
 
 		if (ret != ERROR_NONE) {
+			 /*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
+			 #if defined(CONFIG_PRIZE_STEP_MOTOR_ENABLE)
+			 if (psensor->inst.sensor_idx == 1 )
+	                	stepper_motor_onoff(IMGSENSOR_HW_POWER_STATUS_OFF);
+			 #endif
+			 /*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
 			imgsensor_hw_power(&pimgsensor->hw,
 				psensor,
 				IMGSENSOR_HW_POWER_STATUS_OFF);
@@ -416,6 +446,10 @@ imgsensor_sensor_control(
 	return ret;
 }
 
+//prize add by lipengpeng 20200407 start
+extern int step_motor_state_get(void);
+//prize add by lipengpeng 20200407 end 
+
 MINT32 imgsensor_sensor_close(struct IMGSENSOR_SENSOR *psensor)
 {
 	MINT32 ret = ERROR_NONE;
@@ -440,6 +474,20 @@ MINT32 imgsensor_sensor_close(struct IMGSENSOR_SENSOR *psensor)
 #endif
 
 		psensor_func->psensor_inst = psensor_inst;
+		/*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
+		#if defined(CONFIG_PRIZE_STEP_MOTOR_ENABLE)
+		if (psensor->inst.sensor_idx==1)
+		{
+			if(step_motor_state_get()==4)
+				printk("lpp---This is the second time to exit the camera");
+			else
+			{
+			  printk("lpp---This is the first time to exit the camera");
+			  stepper_motor_onoff(IMGSENSOR_HW_POWER_STATUS_OFF);
+			}
+		}
+		#endif
+		/*zhengjiang.zhu@Koobee.Camera.Driver  2018/09/30  add for step_motor & hall1120*/
 #if defined(CONFIG_MTK_CAM_SECURE_I2C)
 		PK_INFO("%s secure state %d", __func__,
 			(int)(&gimgsensor)->imgsensor_sec_flag);
@@ -531,6 +579,34 @@ static inline int imgsensor_check_is_alive(struct IMGSENSOR_SENSOR *psensor)
 	} else {
 		PK_DBG("Sensor found ID = 0x%x\n", sensorID);
 		err = ERROR_NONE;
+
+		//prize-lixuefeng-20150512-start
+		#if defined(CONFIG_PRIZE_HARDWARE_INFO)
+		if(psensor->inst.sensor_idx >= 0 && psensor->inst.sensor_idx < 5)
+		{
+			if (sensorID == 0x30a) {
+				strcpy(current_camera_info[2].chip,psensor_inst->psensor_list->name);
+				sprintf(current_camera_info[2].id,"0x%04x",sensorID);
+				strcpy(current_camera_info[2].vendor,"unknow");
+
+			}else {
+				strcpy(current_camera_info[psensor->inst.sensor_idx].chip,psensor_inst->psensor_list->name);
+    			sprintf(current_camera_info[psensor->inst.sensor_idx].id,"0x%04x",sensorID);
+    			strcpy(current_camera_info[psensor->inst.sensor_idx].vendor,"unknow");
+			}
+			if (1){
+				MSDK_SENSOR_RESOLUTION_INFO_STRUCT sensorResolution;
+				imgsensor_sensor_get_resolution(psensor,&sensorResolution);
+				if (sensorID == 0x30a){
+					sprintf(current_camera_info[2].more,"%d*%d",sensorResolution.SensorFullWidth,sensorResolution.SensorFullHeight);
+
+				}else{
+					sprintf(current_camera_info[psensor->inst.sensor_idx].more,"%d*%d",sensorResolution.SensorFullWidth,sensorResolution.SensorFullHeight);
+				}
+			}
+		}
+		#endif
+		//prize-lixuefeng-20150512-end
 	}
 
 	imgsensor_hw_power(&pimgsensor->hw,
@@ -1990,6 +2066,173 @@ static const struct file_operations gimgsensor_file_operations = {
 #endif
 };
 
+//prize-huangzhanbin-20190319-add for dualcam-start
+#ifdef CONFIG_DUALCAM_CALI_RW
+
+static uint32_t cali_value = 0;
+#if defined(IMX499_MIPI_RAW)  
+extern int store_dualcam_cali_data_imx499(void);
+extern int dump_dualcam_cali_data_imx499(void);
+#endif
+#if defined(S5KGM1SP_MIPI_RAW) 
+extern int store_dualcam_cali_data_s5kgm1sp(void);
+extern int dump_dualcam_cali_data_s5kgm1sp(void);
+#endif
+//extern int store_dualcam_cali_data_ov13855_tianshi(void);
+//extern int dump_dualcam_cali_data_ov13855_tianshi(void);
+
+
+#define ARCSOFT_CALIBRATION_NUM    2048
+
+int CALI_DATA_NUM = ARCSOFT_CALIBRATION_NUM; //arcsoft 2k for default
+
+static ssize_t calibration_dump_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    pr_err(" func: %s", __func__);
+    return sprintf(buf, "%d\n", cali_value);
+}
+
+static ssize_t calibration_dump_store(struct device *dev,  struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct IMGSENSOR *pimgsensor = &gimgsensor;
+    MINT32 ret = ERROR_NONE;
+    enum IMGSENSOR_SENSOR_IDX curCamId = IMGSENSOR_SENSOR_IDX_MAIN;
+    struct IMGSENSOR_SENSOR *psensor = NULL;
+    int write_enable = 0;
+
+    pr_info("%s dump cali data\n", __func__);
+
+
+    sscanf(buf, "%d", &write_enable);
+	printk("calibration_cmd :dump %d", write_enable);
+    if(0x1 == write_enable) { //arcsoft for 0x1
+        curCamId = IMGSENSOR_SENSOR_IDX_MAIN;		
+    } else if(0x2 == write_enable) { //arcsoft for 2  
+        curCamId = IMGSENSOR_SENSOR_IDX_SUB;
+    }
+
+
+    psensor = imgsensor_sensor_get_inst(curCamId);
+    if (psensor == NULL) {
+        pr_err("psensor is NULL!\n");
+        return ret;
+    }
+    pr_err(" index: %d : name\n", psensor->inst.sensor_idx);
+	ret = imgsensor_hw_power(&pimgsensor->hw, psensor, IMGSENSOR_HW_POWER_STATUS_ON);
+    if (ret != ERROR_NONE) {
+        pr_err("[%s] failed to power on\n", __func__);
+        return ret;
+    }
+    mDELAY(5);
+    imgsensor_mutex_lock(&psensor->inst);
+    if (IMGSENSOR_SENSOR_IDX_MAIN == curCamId) {
+		if(1)//(!strcmp(camera_b_name,"imx499_mipi_raw"))
+		{
+			#if defined(IMX499_MIPI_RAW)  
+			dump_dualcam_cali_data_imx499();
+			#endif
+			#if defined(S5KGM1SP_MIPI_RAW) 
+			dump_dualcam_cali_data_s5kgm1sp();
+			#endif
+		}
+		else// if(!strcmp(camera_b_name,"ov13855_tianshi_mipi_raw"))
+		{
+			//dump_dualcam_cali_data_ov13855_tianshi();
+		}
+    } 
+    imgsensor_mutex_unlock(&psensor->inst);
+   ret = imgsensor_hw_power(&pimgsensor->hw, psensor, IMGSENSOR_HW_POWER_STATUS_OFF);
+   if (ret != ERROR_NONE) {
+        pr_err("[%s] failed to power off\n", __func__);
+        return ret;
+    }
+    pr_err("[%s] X\n", __func__);
+
+    return count;
+}
+
+static DEVICE_ATTR(calibration_dump, S_IWUSR | S_IRUGO, calibration_dump_show, calibration_dump_store);
+
+
+
+static ssize_t calibration_save_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+   return sprintf(buf, "%d\n", cali_value);
+}
+
+static ssize_t calibration_save_store(struct device *dev,  struct device_attribute *attr, const char *buf, size_t count)
+{
+    int write_enable = 0;
+    int size = -1;
+
+    MINT32 ret = ERROR_NONE;
+    enum IMGSENSOR_SENSOR_IDX curCamId = IMGSENSOR_SENSOR_IDX_MAIN;
+    struct IMGSENSOR_SENSOR *psensor = NULL;
+
+    sscanf(buf, "%d", &write_enable);
+
+	printk("calibration_cmd :save %d", write_enable);
+
+    pr_err("%s store cali data\n", __func__);
+
+    if(0x1 == write_enable) { // arcsoft for 0x1 
+        curCamId = IMGSENSOR_SENSOR_IDX_MAIN;
+    } else if (0x2 == write_enable) { //arcsoft for 0x2
+        curCamId = IMGSENSOR_SENSOR_IDX_SUB;
+    }
+
+    psensor = imgsensor_sensor_get_inst(curCamId);
+    if (!psensor) {
+        pr_err("psensor is NULL!\n");
+        return ret;
+    }
+    cali_value = write_enable;
+    pr_err("%s start to store cali data\n", __func__);
+
+  /*ret = imgsensor_hw_power(&pgimgsensor->hw, psensor, psensor->inst.psensor_name, IMGSENSOR_HW_POWER_STATUS_ON);
+    if (ret != ERROR_NONE) {
+        pr_err("[%s] failed to power on", __func__);
+        return ret;
+    }*/
+
+    mDELAY(5);
+    imgsensor_mutex_lock(&psensor->inst);
+    if (IMGSENSOR_SENSOR_IDX_MAIN == curCamId) {
+		if(1)//(!strcmp(camera_b_name,"imx499_mipi_raw"))
+		{
+			#if defined(IMX499_MIPI_RAW)  
+			size = store_dualcam_cali_data_imx499();
+			#endif
+			#if defined(S5KGM1SP_MIPI_RAW) 
+			size = store_dualcam_cali_data_s5kgm1sp();
+			#endif
+		}
+		else// if(!strcmp(camera_b_name,"ov13855_tianshi_mipi_raw"))
+		{
+			//size = store_dualcam_cali_data_ov13855_tianshi();
+		}
+	
+	
+    } 
+    if (size < 0) {
+        pr_err("Fail to store new calibration data cur camid: %d\n", curCamId);
+    }
+    imgsensor_mutex_unlock(&psensor->inst);
+
+   /*ret = imgsensor_hw_power(&pgimgsensor->hw, psensor, psensor->inst.psensor_name, IMGSENSOR_HW_POWER_STATUS_OFF);
+    if (ret != ERROR_NONE) {
+        pr_err("[%s] failed to power off", __func__);
+        return ret;
+    }*/
+
+    return count;
+}
+
+
+static DEVICE_ATTR(calibration_save, S_IWUSR | S_IRUGO, calibration_save_show, calibration_save_store);
+#endif
+//prize-huangzhanbin-20190319-add for dualcam-end
+
 static int imgsensor_probe(struct platform_device *pplatform_device)
 {
 	struct IMGSENSOR *pimgsensor = &gimgsensor;
@@ -2041,6 +2284,21 @@ static int imgsensor_probe(struct platform_device *pplatform_device)
 
 	phw->common.pplatform_device = pplatform_device;
 
+//prize-huangzhanbin-20190319-add for dualcam-start
+#ifdef CONFIG_DUALCAM_CALI_RW
+
+	gimgsensor_device = pdevice;
+	if (gimgsensor_device != NULL){
+		device_create_file(gimgsensor_device, &dev_attr_calibration_dump);
+		pr_err("creat calibration dump sys node\n");
+	}
+	if (gimgsensor_device != NULL){
+		device_create_file(gimgsensor_device, &dev_attr_calibration_save);
+		pr_err("creat calibration save sys node\n");
+	} /* add calibration sys node end */
+#endif /* CONFIG_DUALCAM_CALI_RW */
+//prize-huangzhanbin-20190319-add for dualcam-end
+
 	imgsensor_hw_init(phw);
 	imgsensor_i2c_create();
 	imgsensor_proc_init();
@@ -2065,6 +2323,20 @@ static int imgsensor_remove(struct platform_device *pplatform_device)
 
 	device_destroy(pimgsensor->pclass, pimgsensor->dev_no);
 	class_destroy(pimgsensor->pclass);
+
+//prize-huangzhanbin-20190319-add for dualcam-start
+#ifdef CONFIG_DUALCAM_CALI_RW
+
+	if (gimgsensor_device != NULL){
+		device_remove_file(gimgsensor_device, &dev_attr_calibration_dump);
+		pr_err("remove calibration dump sys node\n");
+	}
+	if (gimgsensor_device != NULL){
+		device_remove_file(gimgsensor_device, &dev_attr_calibration_save);
+		pr_err("remove calibration save sys node\n");
+	} /* remove calibration sys node end */
+#endif /* CONFIG_DUALCAM_CALI_RW */
+//prize-huangzhanbin-20190319-add for dualcam-end
 
 	return 0;
 }

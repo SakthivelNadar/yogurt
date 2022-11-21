@@ -23,6 +23,39 @@
  *     mediatek\custom\common\hal\imgsensor\src\sensorlist.cpp
  */
 struct IMGSENSOR_INIT_FUNC_LIST kdSensorList[MAX_NUM_OF_SUPPORT_SENSOR] = {
+/*prize  add  for camera by zhuzhengjiang    20200902-begin*/
+#if defined(BF2253L_MIPI_RAW)
+    {BF2253L_MIPI_SENSOR_ID, SENSOR_DRVNAME_BF2253L_MIPI_RAW, BF2253L_MIPI_RAW_SensorInit},
+#endif
+#if defined(BF2253LMACRO_MIPI_RAW)
+    {BF2253LMACRO_MIPI_SENSOR_ID, SENSOR_DRVNAME_BF2253LMACRO_MIPI_RAW, BF2253LMACRO_MIPI_RAW_SensorInit},
+#endif
+#if defined(OV16A1Q_MIPI_RAW)
+    {OV16A1Q_SENSOR_ID, SENSOR_DRVNAME_OV16A1Q_MIPI_RAW, OV16A1Q_MIPI_RAW_SensorInit},
+#endif
+#if defined(OV16A10_MIPI_RAW)
+    {OV16A10_SENSOR_ID, SENSOR_DRVNAME_OV16A10_MIPI_RAW, OV16A10_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC5035_MIPI_RAW)
+    {GC5035_SENSOR_ID, SENSOR_DRVNAME_GC5035_MIPI_RAW,GC5035MIPI_RAW_SensorInit},
+#endif
+
+#if defined(S5KGM1ST_MIPI_RAW)
+{S5KGM1ST_SENSOR_ID, SENSOR_DRVNAME_S5KGM1ST_MIPI_RAW,S5KGM1ST_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC8034SUB_MIPI_RAW)
+    {GC8034SUB_SENSOR_ID, SENSOR_DRVNAME_GC8034SUB_MIPI_RAW,GC8034SUB_MIPI_RAW_SensorInit},
+#endif
+/*prize  add  for camera by zhuzhengjiang    20200902-end*/
+/* prize liaoxingen add camera 20200914 start  */
+#if defined (S5K4H7YX_MIPI_RAW)
+    {S5K4H7YX_SENSOR_ID, SENSOR_DRVNAME_S5K4H7YX_MIPI_RAW, S5K4H7YX_MIPI_RAW_SensorInit},
+#endif
+#if defined (S5K4H7YXSUB_MIPI_RAW)
+    {S5K4H7YXSUB_SENSOR_ID, SENSOR_DRVNAME_S5K4H7YXSUB_MIPI_RAW, S5K4H7YXSUB_MIPI_RAW_SensorInit},
+#endif
+/* prize liaoxingen add camera 20200914 end  */
+
 	/*IMX*/
 #if defined(IMX519_MIPI_RAW)
 	{IMX519_SENSOR_ID,

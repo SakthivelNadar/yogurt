@@ -36,5 +36,36 @@ obj-$(CONFIG_CHARGER_RT9465) += rt9465.o
 obj-$(CONFIG_CHARGER_RT9458) += rt9458.o
 obj-$(CONFIG_CHARGER_RT9467) += rt9467.o
 obj-$(CONFIG_CHARGER_RT9471) += rt9471.o
+#/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+obj-$(CONFIG_CHARGER_RT9759) += rt9759.o
+obj-$(CONFIG_RT_PROP_CHGALGO) += prop_chgalgo_class.o pca_pps_ta.o \
+				 pca_mtk_chg.o pca_dv2_algo.o
+obj-$(CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT)	+= mtk_pe50_intf.o mtk_pe50.o mtk_intf.o
+#/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
 obj-$(CONFIG_CHARGER_HL7005) += hl7005.o
 obj-$(CONFIG_CHARGER_BQ25601) += bq25601.o
+#//prize added by huarui, ne6153 support, 20190111-start
+obj-$(CONFIG_PRIZE_NE6153_SUPPORT) += ne6153.o
+#//prize added by huarui, ne6153 support, 20190111-end
+
+# begin, prize-sunshuai-20200111, add for wireless power receiver mt5715
+obj-$(CONFIG_PRIZE_WIRELESS_RECEIVER_MAXIC_MT5715) += MT5715_wireless_driver.o
+# end, prize-sunshuai-20200111, add for wireless power receiver mt5715
+
+#//prize added by huarui, eta6937 support, 20190111-start
+obj-$(CONFIG_HL7005ALL_CHARGER_SUPPORT) += hl7005all.o
+#//prize added by huarui, eta6937 support, 20190111-end
+
+#//prize added by sunshuai, charge support, 20200507-start
+obj-$(CONFIG_PRIZE_MT5725_SUPPORT_15W) += mt5725_wireless_driver-15w.o
+#//prize added by sunshuai, charge support, 20200507-end
+
+#//prize added by huarui, charge support, 20190111-start
+obj-$(CONFIG_PRIZE_MT5725_SUPPORT) += mt5725_wireless_driver.o
+#//prize added by huarui, charge support, 20190111-end
+
+#//prize added by sunshuai, cvs8035 support, 20200701-start
+obj-$(CONFIG_PRIZE_CV8035D_SUPPORT) += cvs8035/
+#//prize added by sunshuai, cvs8035 support, 20200701-end
+
+obj-$(CONFIG_PRIZE_CHARGE_CTRL_HX) += prize_charge_limit.o

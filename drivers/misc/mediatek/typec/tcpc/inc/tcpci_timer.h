@@ -99,6 +99,13 @@ enum {
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	TYPEC_RT_TIMER_PE_IDLE,
+/*prize add by sunshuai for A-C 30w charge 20201109-start */
+#ifdef CONFIG_PRIZE_ATOC_TYPEC_CHARGE
+#ifdef CONFIG_TYPEC_WAIT_BC12
+	TYPEC_RT_TIMER_SINK_WAIT_BC12,
+#endif /* CONFIG_TYPEC_WAIT_BC12 */
+#endif/* CONFIG_PRIZE_ATOC_TYPEC_CHARGE */
+/*prize add by sunshuai for A-C 30w charge 20201109-end */
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 	TYPEC_TIMER_ERROR_RECOVERY,
 /* TYPEC-TRY-TIMER */

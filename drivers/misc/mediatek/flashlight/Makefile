@@ -17,6 +17,10 @@ obj-$(CONFIG_MTK_FLASHLIGHT_MT6370)      += flashlights-mt6370.o
 obj-$(CONFIG_MTK_FLASHLIGHT_MT6360)      += flashlights-mt6360.o
 obj-$(CONFIG_MTK_FLASHLIGHT_DUMMY)       += flashlights-dummy.o
 obj-$(CONFIG_MTK_FLASHLIGHT_DUMMY_GPIO)  += flashlights-dummy-gpio.o
+#/*zhengjiang.zhu@prize.Camera.Driver  20200116  start for sub_flash_aw36402*/
+obj-$(CONFIG_MTK_FLASHLIGHT_AW36402_GPIO)  += flashlights-aw36402-gpio.o
+obj-$(CONFIG_MTK_FLASHLIGHT_AW36518)  += flashlights-aw36518.o
+#/*zhengjiang.zhu@prize.Camera.Driver  20200116  start for sub_flash_aw36402*/
 
 ccflags-$(CONFIG_MTK_FLASHLIGHT_DEBUG)     := -DDEBUG
 ccflags-$(CONFIG_MTK_FLASHLIGHT_LED191)    += -DCONFIG_MTK_FLASHLIGHT_LED191
@@ -36,3 +40,12 @@ subdir-ccflags-y += \
 	-I$(MTK_CUSTOM_PATH)/pmic/include \
 	-I$(MTK_CUSTOM_PATH)/pmic
 
+
+#prize added by huarui, flashlight support, 20190111-start
+obj-$(CONFIG_MTK_FLASHLIGHT_AW3641_GPIO)     += flashlights-aw3641-gpio.o
+obj-$(CONFIG_MTK_FLASHLIGHT_WD3100D_GPIO)     += flashlights-wd3100d-gpio.o
+obj-$(CONFIG_MTK_FLASHLIGHT_ISINK)     += flashlights-isink.o
+obj-$(CONFIG_MTK_FLASHLIGHT_SGM37898)      += flashlights-sgm37898.o
+obj-$(CONFIG_MTK_FLASHLIGHT_SGM37895)      += flashlights-sgm37895.o
+obj-$(CONFIG_MTK_FLASHLIGHT_SGM37895A)      += flashlights-sgm37895a.o
+#prize added by huarui, flashlight support, 20190111-end

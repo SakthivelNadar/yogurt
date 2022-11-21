@@ -996,3 +996,10 @@ config REGULATOR_WM8994
 
 endif
 
+
+#PRIZE
+config TPS65132_SUPPORT
+  bool CONFIG_TPS65132_SUPPORT
+  default no
+  help
+    CONFIG_TPS65132_SUPPORT

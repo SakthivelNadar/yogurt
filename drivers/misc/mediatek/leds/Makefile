@@ -27,3 +27,6 @@ else
 obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 endif
 
+# prize add by huarui ,breath led, 20200528 start
+obj-$(CONFIG_LEDS_AW22127) += aw22127/
+# prize add by huarui ,breath led, 20200528 end

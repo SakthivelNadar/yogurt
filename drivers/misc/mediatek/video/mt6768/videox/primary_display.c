@@ -217,7 +217,12 @@ static int primary_display_get_round_corner_mva(
 /* Must manipulate wake lock through lock_primary_wake_lock() */
 /* hold the wakelock to make kernel awake when primary display is on*/
 struct wakeup_source pri_wk_lock;
-
+//prize-liaoxingen-20200922-start
+#if defined(CONFIG_PRIZE_HARDWARE_INFO)
+#include "../../../hardware_info/hardware_info.h"
+extern struct hardware_info current_lcm_info;
+#endif
+//prize-liaoxingen-20200922-end
 /* Notice: should hold path lock before call this function */
 void lock_primary_wake_lock(bool lock)
 {
@@ -3810,6 +3815,11 @@ int primary_display_init(char *lcm_name, unsigned int lcm_fps,
 		goto done;
 	} else {
 		DISPCHECK("disp_lcm_probe SUCCESS\n");
+        //prize-liaoxingen-20200922-start
+#if defined(CONFIG_PRIZE_HARDWARE_INFO)
+        current_lcm_info=pgc->plcm->drv->lcm_info;
+#endif
+        //prize-liaoxingen-20200922-end
 	}
 
 	lcm_param = disp_lcm_get_params(pgc->plcm);

@@ -78,6 +78,20 @@ const struct flashlight_device_id flashlight_id[] = {
 	/* {TYPE, CT, PART, "NAME", CHANNEL, DECOUPLE} */
 	{0, 0, 0, "flashlights-lm3642", 0, 0},
 };
+/*zhengjiang.zhu@prize.Camera.Driver  20200116  start for sub_flash_aw36402*/
+#elif defined(CONFIG_MTK_FLASHLIGHT_AW36402_GPIO)
+	const struct flashlight_device_id flashlight_id[] = {
+		/* {TYPE, CT, PART, "NAME", CHANNEL, DECOUPLE} */
+		{1, 0, 0, "flashlights-aw36402-gpio", 0, 0},
+	};
+/*zhengjiang.zhu@prize.Camera.Driver  20200116  end for sub_flash_aw36402*/
+/*prize add by zhuzhengjiang for aw36518    20200904 start*/
+#elif defined(CONFIG_MTK_FLASHLIGHT_AW36518)
+	const struct flashlight_device_id flashlight_id[] = {
+		/* {TYPE, CT, PART, "NAME", CHANNEL, DECOUPLE} */
+		{0, 0, 0, "flashlights_aw36518", 0, 1},
+	};
+/*prize add by zhuzhengjiang for aw36518    20200904 end*/
 #else
 const struct flashlight_device_id flashlight_id[] = {
 	/* {TYPE, CT, PART, "NAME", CHANNEL, DECOUPLE} */

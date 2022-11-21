@@ -31,6 +31,9 @@ module_param(dbg_log_en, bool, 0644);
 
 static const struct mt6360_ldo_platform_data def_platform_data = {
 	.sdcard_det_en = true,
+//prize added by huarui, 6360 sdcard detect level select, 20190121-start
+	.sdcard_det_level = 1,
+//prize added by huarui, 6360 sdcard detect level select, 20190121-end
 };
 
 struct mt6360_regulator_desc {
@@ -330,6 +333,25 @@ static int mt6360_ldo_enable(struct regulator_dev *rdev)
 	}
 	/* when LDO5 enable, enable SDCARD_DET */
 	if (id == MT6360_LDO_LDO5 && pdata->sdcard_det_en) {
+	//prize added by huarui, 6360 sdcard detect level select, 20190121-start
+		if (pdata->sdcard_det_level){
+			ret = mt6360_ldo_reg_update_bits(mli, MT6360_LDO_LDO5_CTRL0,
+						 0x80, 0xff);
+			if (ret < 0) {
+				dev_err(&rdev->dev,
+					"%s: set sdcard_det_level fail (%d)\n", __func__, ret);
+				//return ret;
+			}
+		}else{
+			ret = mt6360_ldo_reg_update_bits(mli, MT6360_LDO_LDO5_CTRL0,
+						 0x80, 0);
+			if (ret < 0) {
+				dev_err(&rdev->dev,
+					"%s: set sdcard_det_level fail (%d)\n", __func__, ret);
+				//return ret;
+			}
+		}
+	//prize added by huarui, 6360 sdcard detect level select, 20190121-end
 		ret = mt6360_ldo_reg_update_bits(mli, MT6360_LDO_LDO5_CTRL0,
 						 0x40, 0xff);
 		if (ret < 0) {
@@ -639,6 +661,9 @@ static int mt6360_ldo_apply_pdata(struct mt6360_ldo_info *mli,
 
 static const struct mt6360_val_prop mt6360_val_props[] = {
 	MT6360_DT_VALPROP(sdcard_det_en, struct mt6360_ldo_platform_data),
+//prize added by huarui, 6360 sdcard detect level select, 20190121-start
+	MT6360_DT_VALPROP(sdcard_det_level, struct mt6360_ldo_platform_data),
+//prize added by huarui, 6360 sdcard detect level select, 20190121-end
 };
 
 static int mt6360_ldo_parse_dt_data(struct device *dev,

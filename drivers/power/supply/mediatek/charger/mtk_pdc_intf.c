@@ -127,7 +127,13 @@ static bool mtk_is_pdc_ready(struct charger_manager *info)
 		return true;
 
 	if (info->pd_type == MTK_PD_CONNECT_PE_READY_SNK_APDO &&
-		info->enable_pe_4 == false)
+		info->enable_pe_4 == false 
+		#ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_50_SUPPORT
+/*prize-huangjiwu-20200730, add for rt9759 pe50 start*/
+		&&info->enable_pe_5 == false
+/*prize-huangjiwu-20200730, add for rt9759 pe50 end*/
+		#endif
+		)
 		return true;
 
 	return false;

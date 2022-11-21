@@ -53,6 +53,21 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/delay.h>
+#include <linux/module.h>
+
+#if defined(CONFIG_AW8155_SUPPORT)	//PRIZE+
+static int extspk_mode = CONFIG_AW8155_MODE;
+module_param(extspk_mode,int,0644);
+#elif defined(CONFIG_AW8736_SUPPORT)
+static int extspk_mode = CONFIG_AW8736_MODE;
+module_param(extspk_mode,int,0644);
+#elif defined(CONFIG_AW8733_SUPPORT)
+static int extspk_mode = CONFIG_AW8733_MODE;
+module_param(extspk_mode,int,0644);
+#elif defined(CONFIG_SND_SOC_AW87339)
+extern unsigned char prize_aw87339_audio_speaker_on(bool on);
+#endif	//PRIZE-
 
 #if 1
 struct pinctrl *pinctrlaud;
@@ -495,6 +510,38 @@ int AudDrv_GPIO_EXTAMP_Select(int bEnable, int mode)
 	int retval = 0;
 
 #if MT6755_PIN
+#if defined(CONFIG_AW8155_SUPPORT)||defined(CONFIG_AW8736_SUPPORT)||defined(CONFIG_AW8733_SUPPORT)	//PRIZE+
+	int ii = 0;
+
+	if ((aud_gpios[GPIO_EXTAMP_HIGH].gpio_prepare) && (aud_gpios[GPIO_EXTAMP_LOW].gpio_prepare)){
+		if (bEnable == 1) {
+			#if defined(CONFIG_MTK_ENG_BUILD)
+			printk("%s extspk_mode = %d\n",__func__,extspk_mode);
+			#endif
+			for (;ii<extspk_mode;ii++){
+				retval = pinctrl_select_state(pinctrlaud, aud_gpios[GPIO_EXTAMP_LOW].gpioctrl);
+				udelay(2);
+				retval = pinctrl_select_state(pinctrlaud, aud_gpios[GPIO_EXTAMP_HIGH].gpioctrl);
+				udelay(2);
+			}
+			if (retval)
+				pr_err("could not set aud_gpios[GPIO_EXTAMP_HIGH] pins\n");
+		} else {
+			retval = pinctrl_select_state(pinctrlaud, aud_gpios[GPIO_EXTAMP_LOW].gpioctrl);
+			if (retval)
+				pr_err("could not set aud_gpios[GPIO_EXTAMP_LOW] pins\n");
+			#if defined(CONFIG_AW8733_SUPPORT)
+			udelay(500);
+			#else
+			udelay(250);
+			#endif
+		}
+	}else{
+		pr_err("aud_gpios[GPIO_EXTAMP_HIGH|GPIO_EXTAMP_LOW] pins not prepared\n");
+	}
+#elif defined(CONFIG_SND_SOC_AW87339) //end defined(CONFIG_AW8155_SUPPORT)||defined(CONFIG_AW8736_SUPPORT)||defined(CONFIG_AW8733_SUPPORT)
+	prize_aw87339_audio_speaker_on(!!bEnable);
+#else	//PRIZE-
 	int extamp_mode;
 	int i;
 
@@ -533,6 +580,7 @@ int AudDrv_GPIO_EXTAMP_Select(int bEnable, int mode)
 		}
 	}
 	mutex_unlock(&gpio_request_mutex);
+#endif //defined(CONFIG_AW8155_SUPPORT)||defined(CONFIG_AW8736_SUPPORT)||defined(CONFIG_AW8733_SUPPORT)	//PRIZE
 #endif
 	return retval;
 }

@@ -141,6 +141,180 @@ int display_bias_disable(void)
 }
 EXPORT_SYMBOL(display_bias_disable);
 
+//PRIZE
+int display_bias_vpos_enable(int enable)
+{
+	int ret = 0;
+	int retval = 0;
+
+	display_bias_regulator_init();
+
+	if (enable){
+		/* enable regulator */
+		ret = regulator_enable(disp_bias_pos);
+		if (ret < 0)
+			pr_err("enable regulator disp_bias_pos fail, ret = %d\n", ret);
+	}else{
+		ret = regulator_disable(disp_bias_pos);
+		if (ret < 0)
+			pr_err("disable regulator disp_bias_pos fail, ret = %d\n", ret);
+	}
+	retval |= ret;
+
+	return retval;
+}
+EXPORT_SYMBOL(display_bias_vpos_enable);
+
+int display_bias_vneg_enable(int enable)
+{
+	int ret = 0;
+	int retval = 0;
+
+	display_bias_regulator_init();
+
+	if (enable){
+		/* enable regulator */
+		ret = regulator_enable(disp_bias_neg);
+		if (ret < 0)
+			pr_err("enable regulator disp_bias_neg fail, ret = %d\n", ret);
+	}else{
+		ret = regulator_disable(disp_bias_neg);
+		if (ret < 0)
+			pr_err("disable regulator disp_bias_neg fail, ret = %d\n", ret);
+	}
+	retval |= ret;
+
+	return retval;
+}
+EXPORT_SYMBOL(display_bias_vneg_enable);
+
+int display_bias_vpos_set(int mv)
+{
+	int ret = 0;
+	int retval = 0;
+
+	display_bias_regulator_init();
+
+	/* set voltage with min & max*/
+	ret = regulator_set_voltage(disp_bias_pos, mv*1000, mv*1000);
+	if (ret < 0)
+		pr_err("set voltage disp_bias_pos fail, ret = %d\n", ret);
+	retval |= ret;
+
+#if 0
+	/* get voltage */
+	ret = mtk_regulator_get_voltage(&disp_bias_pos);
+	if (ret < 0)
+		pr_err("get voltage disp_bias_pos fail\n");
+	pr_debug("pos voltage = %d\n", ret);
+
+#endif
+
+	return retval;
+}
+EXPORT_SYMBOL(display_bias_vpos_set);
+
+int display_bias_vneg_set(int mv)
+{
+	int ret = 0;
+	int retval = 0;
+
+	display_bias_regulator_init();
+
+	/* set voltage with min & max*/
+	ret = regulator_set_voltage(disp_bias_neg, mv*1000, mv*1000);
+	if (ret < 0)
+		pr_err("set voltage disp_bias_neg fail, ret = %d\n", ret);
+	retval |= ret;
+
+#if 0
+	/* get voltage */
+	ret = mtk_regulator_get_voltage(&disp_bias_neg);
+	if (ret < 0)
+		pr_err("get voltage disp_bias_neg fail\n");
+	pr_debug("neg voltage = %d\n", ret);
+
+#endif
+
+	return retval;
+}
+EXPORT_SYMBOL(display_bias_vneg_set);
+#elif defined(CONFIG_TPS65132_SUPPORT)
+//****************************************
+//******use tps65132 as lcm bias**********
+//****************************************
+#include "../../../regulator/tps65132.h"
+#include <linux/delay.h>
+int display_bias_regulator_init(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(display_bias_regulator_init);
+
+int display_bias_enable(void)
+{
+	tps65132_vpos_enable(1);
+	//udelay(10*1000);
+	udelay(1000);
+	tps65132_vneg_enable(1);
+	tps65132_set_vpos_volt(5500);
+	tps65132_set_vneg_volt(5500);
+	return 0;
+}
+EXPORT_SYMBOL(display_bias_enable);
+
+int disp_late_bias_enable(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(disp_late_bias_enable);
+
+int display_bias_disable(void)
+{
+	tps65132_vneg_enable(0);
+	//udelay(10*1000);
+	udelay(1000);
+	tps65132_vpos_enable(0);
+	return 0;
+}
+EXPORT_SYMBOL(display_bias_disable);
+
+int display_bias_vpos_enable(int enable)
+{
+	int ret = 0;
+	if (enable){
+		ret = tps65132_vpos_enable(1);
+	}else{
+		ret = tps65132_vpos_enable(0);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(display_bias_vpos_enable);
+
+int display_bias_vneg_enable(int enable)
+{
+	int ret = 0;
+	if (enable){
+		ret = tps65132_vneg_enable(1);
+	}else{
+		ret = tps65132_vneg_enable(0);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(display_bias_vneg_enable);
+
+int display_bias_vpos_set(int mv)
+{
+	return tps65132_set_vpos_volt(mv);
+}
+EXPORT_SYMBOL(display_bias_vpos_set);
+
+int display_bias_vneg_set(int mv)
+{
+	return tps65132_set_vneg_volt(mv);
+}
+EXPORT_SYMBOL(display_bias_vneg_set);
+
 #else
 int display_bias_regulator_init(void)
 {
@@ -167,3 +341,70 @@ int display_bias_disable(void)
 EXPORT_SYMBOL(display_bias_disable);
 #endif
 
+#include <linux/of_gpio.h>
+static char is_init_lcm_ldo_gpio = 0;
+static int gpio_lcd_ldo18_pin = -1;
+static int gpio_lcd_ldo28_pin = -1;
+static char init_lcm_ldo_gpio_form_dtb(void){
+	struct device_node *node;
+	node = of_find_compatible_node(NULL,NULL,"prize,lcm_power_gpio");
+	if (node){
+		gpio_lcd_ldo18_pin = of_get_named_gpio(node,"gpio_lcd_ldo18_gpio",0);
+		if (gpio_lcd_ldo18_pin < 0){
+			printk(KERN_ERR"lcm_pmic get gpio_lcd_ldo18_pin fail %d\n",gpio_lcd_ldo18_pin);
+		}else{
+			gpio_request(gpio_lcd_ldo18_pin,"lcd_ldo18");
+		}
+		
+		gpio_lcd_ldo28_pin = of_get_named_gpio(node,"gpio_lcd_ldo28_gpio",0);
+		if (gpio_lcd_ldo28_pin < 0){
+			printk(KERN_INFO"lcm_pmic get gpio_lcd_ldo28_pin fail %d\n",gpio_lcd_ldo28_pin);
+		}else{
+			gpio_request(gpio_lcd_ldo28_pin,"lcd_ldo28");
+		}
+		
+		is_init_lcm_ldo_gpio = 1;
+	}else{
+		printk(KERN_ERR"lcm_pmic get of_node prize,lcm_power_gpio fail\n");
+	}
+	return -1;
+}
+#if 1
+int display_ldo18_enable(int enable){
+	int ret = 0;
+	
+	if (unlikely(!is_init_lcm_ldo_gpio)){
+		init_lcm_ldo_gpio_form_dtb();
+	}
+	if (likely(gpio_lcd_ldo18_pin > 0)){
+		if (enable){
+			gpio_direction_output(gpio_lcd_ldo18_pin,1);
+		}else{
+			gpio_direction_output(gpio_lcd_ldo18_pin,0);
+		}
+	}
+	return ret;
+}
+int display_ldo28_enable(int enable){
+	int ret = 0;
+	
+	if (unlikely(!is_init_lcm_ldo_gpio)){
+		init_lcm_ldo_gpio_form_dtb();
+	}
+	if (likely(gpio_lcd_ldo28_pin > 0)){
+		if (enable){
+			gpio_direction_output(gpio_lcd_ldo28_pin,1);
+		}else{
+			gpio_direction_output(gpio_lcd_ldo28_pin,0);
+		}
+	}
+	return ret;
+}
+#else
+int display_ldo18_enable(int enable){
+	return 0;
+}
+int display_ldo28_enable(int enable){
+	return 0;
+}
+#endif

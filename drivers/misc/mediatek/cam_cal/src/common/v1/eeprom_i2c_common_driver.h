@@ -18,5 +18,10 @@ unsigned int Common_read_region(struct i2c_client *client,
 				unsigned int addr,
 				unsigned char *data,
 				unsigned int size);
-
+/*prize add by zhengjiang.zhu for dual camea calibration write otp 20191205-start*/
+unsigned int Common_write_region(struct i2c_client *client,
+				unsigned int addr,
+				unsigned char *data,
+				unsigned int size);
+/*prize add by zhengjiang.zhu for dual camea calibration write otp 20191205-end*/
 #endif				/* __CAM_CAL_LIST_H */

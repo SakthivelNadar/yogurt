@@ -29,7 +29,20 @@
 #ifdef CONFIG_SND_SOC_TFA9874
 #include "../../codecs/tfa98xx/inc/tfa98xx_ext.h"
 #endif
-
+/* prize modified by lifenfen, add awinic smartpa aw8898, 20200103 begin */
+#ifdef CONFIG_SND_SOC_AW8898
+#include "../../codecs/aw8898/aw8898.h"
+#endif
+/* prize modified by lifenfen, add awinic smartpa aw8898, 20200103 end */
+/* prize modified by wyq, add awinic smartpa aw881xx, 20200103 begin */
+#ifdef CONFIG_SND_SMARTPA_AW881XX
+#include "../../codecs/aw881xx/aw881xx.h"
+#elif defined(CONFIG_SND_SMARTPA_AW88194A_NEW)
+extern int aw881xx_i2c_probe(struct i2c_client *i2c,
+	const struct i2c_device_id *id);
+extern int aw881xx_i2c_remove(struct i2c_client *i2c);
+#endif
+/* prize modified by wyq, add awinic smartpa aw881xx, 20200103 end */
 #define MTK_SPK_NAME "Speaker Codec"
 #define MTK_SPK_REF_NAME "Speaker Codec Ref"
 static unsigned int mtk_spk_type;
@@ -65,7 +78,47 @@ static struct mtk_spk_i2c_ctrl mtk_spk_list[MTK_SPK_TYPE_NUM] = {
 		.codec_name = "tfa98xx",
 	},
 #endif /* CONFIG_SND_SOC_MT6660 */
+/* prize modified by lifenfen, add awinic smartpa aw8898, 20200103 begin */
+#ifdef CONFIG_SND_SOC_AW8898
+        [MTK_SPK_AWINIC_AW8898] = {
+                .i2c_probe = aw8898_i2c_probe,
+                .i2c_remove = aw8898_i2c_remove,
+                .codec_dai_name = "aw8898-aif",
+                .codec_name = "aw8898_smartpa",
+        },
+#endif /* CONFIG_SND_SOC_AW8898 */
+/* prize modified by lifenfen, add awinic smartpa aw8898, 20200103 end */
+/* prize modified by wyq, add awinic smartpa aw881xx, 20200103 begin */
+#if defined(CONFIG_SND_SMARTPA_AW881XX) || defined(CONFIG_SND_SMARTPA_AW88194A_NEW)
+        [MTK_SPK_AWINIC_AW881XX] = {
+                .i2c_probe = aw881xx_i2c_probe,
+                .i2c_remove = aw881xx_i2c_remove,
+		#if defined(CONFIG_SND_SOC_AW881XX_STEREO)
+                .codec_dai_name = "aw881xx-aif-l",
+                .codec_name = "aw881xx_smartpa_l",
+		#else
+                .codec_dai_name = "aw881xx-aif",
+                .codec_name = "aw881xx_smartpa",
+		#endif
+        },
+#endif /* CONFIG_SND_SMARTPA_AW881XX */
+/* prize modified by wyq, add awinic smartpa aw881xx, 20200103 end */
 };
+
+/* prize modified by huarui, add awinic smartpa aw881xx, 20200103 begin */
+#if defined(CONFIG_SND_SOC_AW881XX_STEREO)
+static struct snd_soc_dai_link_component aw881xx_stereo_codecs[] = {
+	{
+		.name = "aw881xx_smartpa_l",
+		.dai_name = "aw881xx-aif-l",
+	},
+	{
+		.name = "aw881xx_smartpa_r",
+		.dai_name = "aw881xx-aif-r",
+	},
+};
+#endif
+/* prize modified by huarui, add awinic smartpa aw881xx, 20200103 end */
 
 static int mtk_spk_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
@@ -217,10 +270,19 @@ int mtk_spk_update_dai_link(struct snd_soc_card *card,
 	/* update spk codec dai name and codec name */
 	dai_link = &card->dai_link[spk_dai_link_idx];
 	dai_link->name = MTK_SPK_NAME;
+/* prize modified by huarui, add awinic smartpa aw881xx, 20200103 begin */
+#if defined(CONFIG_SND_SOC_AW881XX_STEREO)
+	dai_link->num_codecs = 2;
+	dai_link->codecs = aw881xx_stereo_codecs;
+	dai_link->codec_dai_name = NULL;
+	dai_link->codec_name = NULL;
+#else
 	dai_link->codec_dai_name =
 		mtk_spk_list[mtk_spk_type].codec_dai_name;
 	dai_link->codec_name =
 		mtk_spk_list[mtk_spk_type].codec_name;
+#endif
+/* prize modified by huarui, add awinic smartpa aw881xx, 20200103 end */
 	dai_link->ignore_pmdown_time = 1;
 	if (i2s_mck == mtk_spk_i2s_out)
 		dai_link->ops = i2s_ops;

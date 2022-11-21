@@ -92,6 +92,10 @@ UINT32 OV2650SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 OV23850_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 OV20880_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 /*S5K*/
+/* prize liaoxingen add camera 20200914 start */
+UINT32 S5K4H7YX_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 S5K4H7YXSUB_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+/* prize liaoxingen add camera 20200914 end */
 UINT32 S5K3P8SP_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K2T7SP_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K2L7_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
@@ -175,7 +179,15 @@ UINT32 T4KA7_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 /*Others*/
 UINT32 ISX012_MIPI_YUV_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 T8EV5_YUV_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
-
+/*prize  add  for camera by zhuzhengjiang    20200902-begin*/
+UINT32 BF2253L_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 BF2253LMACRO_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 OV16A1Q_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 OV16A10_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC5035MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 S5KGM1ST_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC8034SUB_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+/*prize  add  for camera by zhuzhengjiang    20200902-end*/
 extern struct IMGSENSOR_INIT_FUNC_LIST kdSensorList[];
 
 #endif

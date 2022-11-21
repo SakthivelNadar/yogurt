@@ -689,6 +689,9 @@ static int mt6360_set_driver(int set)
 static ssize_t mt6360_strobe_store(struct flashlight_arg arg)
 {
 	mt6360_set_driver(1);
+//prize added by huarui, 6360 flashlight test, 20190121-start
+	arg.decouple = 1;
+//prize added by huarui, 6360 flashlight test, 20190121-end
 	if (arg.decouple)
 		mt6360_set_scenario(
 			FLASHLIGHT_SCENARIO_CAMERA |

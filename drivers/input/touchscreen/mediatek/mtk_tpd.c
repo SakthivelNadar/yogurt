@@ -418,6 +418,11 @@ static void touch_resume_workqueue_callback(struct work_struct *work)
 	g_tpd_drv->resume(NULL);
 	tpd_suspend_flag = 0;
 }
+//prize added by huarui, add tp driver, 20190327-start
+#if defined(CONFIG_PRIZE_LCM_POWEROFF_AFTER_TP)
+extern void primary_display_poweroff_ext(void);
+#endif
+//prize added by huarui, add tp driver, 20190327-end
 static int tpd_fb_notifier_callback(
 			struct notifier_block *self,
 			unsigned long event, void *data)
@@ -454,6 +459,11 @@ static int tpd_fb_notifier_callback(
 			if (!err)
 				TPD_DMESG("cancel resume_workqueue failed\n");
 			g_tpd_drv->suspend(NULL);
+		//prize added by huarui, add tp driver, 20190327-start
+		#if defined(CONFIG_PRIZE_LCM_POWEROFF_AFTER_TP)
+			primary_display_poweroff_ext();
+		#endif
+		//prize added by huarui, add tp driver, 20190327-end
 		}
 		tpd_suspend_flag = 1;
 		break;

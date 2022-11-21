@@ -699,6 +699,101 @@ static inline bool __pd_put_pe_event(
 	return __pd_put_event(tcpc_dev, &evt, false);
 }
 
+/*prize add by sunshuai for A-C 30w charge 20201109-start */
+#ifdef CONFIG_PRIZE_ATOC_TYPEC_CHARGE
+bool __pd_put_cc_attached_event(
+		struct tcpc_device *tcpc_dev, uint8_t type)
+{
+	struct pd_event evt = {
+		.event_type = PD_EVT_HW_MSG,
+		.msg = PD_HW_CC_ATTACHED,
+		.msg_sec = type,
+		.pd_msg = NULL,
+	};
+
+	switch (tcpc_dev->typec_attach_new) {
+	case TYPEC_ATTACHED_SNK:
+	case TYPEC_ATTACHED_SRC:
+		tcpc_dev->pd_pe_running = true;
+		tcpc_dev->pd_wait_pe_idle = false;
+		break;
+#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK
+	case TYPEC_ATTACHED_DBGACC_SNK:
+		tcpc_dev->pd_pe_running = true;
+		tcpc_dev->pd_wait_pe_idle = false;
+		break;
+#endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
+	default:
+		break;
+	}
+
+	return __pd_put_event(tcpc_dev, &evt, false);
+}
+
+bool pd_put_cc_attached_event(
+		struct tcpc_device *tcpc_dev, uint8_t type)
+{
+	bool ret = false;
+
+	mutex_lock(&tcpc_dev->access_lock);
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+#ifdef CONFIG_TYPEC_WAIT_BC12
+	if (type == TYPEC_ATTACHED_SNK &&
+		mt_get_charger_type() == CHARGER_UNKNOWN) {
+		tcpc_dev->sink_wait_bc12_count = 1;
+		tcpc_enable_timer(tcpc_dev, TYPEC_RT_TIMER_SINK_WAIT_BC12);
+		mutex_unlock(&tcpc_dev->access_lock);
+		return ret;
+	}
+	tcpc_dev->sink_wait_bc12_count = 0;
+	tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_SINK_WAIT_BC12);
+#endif /* CONFIG_TYPEC_WAIT_BC12 */
+#endif /* CONFIG_USB_POWER_DELIVERY */
+
+	ret = __pd_put_cc_attached_event(tcpc_dev, type);
+
+	mutex_unlock(&tcpc_dev->access_lock);
+
+	return ret;
+}
+
+void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev)
+{
+	mutex_lock(&tcpc_dev->access_lock);
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+#ifdef CONFIG_TYPEC_WAIT_BC12
+	tcpc_dev->sink_wait_bc12_count = 0;
+	tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_SINK_WAIT_BC12);
+#endif /* CONFIG_TYPEC_WAIT_BC12 */
+#endif /* CONFIG_USB_POWER_DELIVERY */
+
+	tcpci_notify_hard_reset_state(
+		tcpc_dev, TCP_HRESET_RESULT_FAIL);
+
+	__pd_event_buf_reset(tcpc_dev, TCP_DPM_RET_DROP_CC_DETACH);
+	__pd_put_hw_event(tcpc_dev, PD_HW_CC_DETACHED);
+
+	tcpc_dev->pd_wait_pe_idle = true;
+	tcpc_dev->pd_pe_running = false;
+	tcpc_dev->pd_wait_pr_swap_complete = false;
+	tcpc_dev->pd_hard_reset_event_pending = false;
+	tcpc_dev->pd_wait_vbus_once = PD_WAIT_VBUS_DISABLE;
+	tcpc_dev->pd_bist_mode = PD_BIST_MODE_DISABLE;
+	tcpc_dev->pd_ping_event_pending = false;
+
+#ifdef CONFIG_USB_PD_DIRECT_CHARGE
+	tcpc_dev->pd_during_direct_charge = false;
+#endif	/* CONFIG_USB_PD_DIRECT_CHARGE */
+
+#ifdef CONFIG_USB_PD_RETRY_CRC_DISCARD
+	tcpc_dev->pd_discard_pending = false;
+#endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
+
+	mutex_unlock(&tcpc_dev->access_lock);
+}
+#else
 bool pd_put_cc_attached_event(
 		struct tcpc_device *tcpc_dev, uint8_t type)
 {
@@ -756,6 +851,8 @@ void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev)
 
 	mutex_unlock(&tcpc_dev->access_lock);
 }
+#endif /*CONFIG_PRIZE_ATOC_TYPEC_CHARGE */
+/*prize add by sunshuai for A-C 30w charge 20201109-end */
 
 void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev)
 {

@@ -51,7 +51,31 @@
 #define SHUTDOWN_TIME 40
 #define AVGVBAT_ARRAY_SIZE 30
 #define INIT_VOLTAGE 3450
+
+//prize-sunshuai-20200909 for BDI customer charge start
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_HX)
+#define BATTERY_SHUTDOWN_TEMPERATURE 68
+#else
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_BDI)
+#define BATTERY_SHUTDOWN_TEMPERATURE 65
+#else
 #define BATTERY_SHUTDOWN_TEMPERATURE 60
+#endif
+#endif
+//prize-sunshuai-20200909 for BDI customer charge end
+
+//prize-chj-2019-06-15 Low temperature negative 20 degree shutdown start
+#if defined(CONFIG_PRIZE_CHARGE_CTRL_VIETNAM) || defined(CONFIG_PRIZE_CHARGE_CTRL_BDI)
+#define BATTERY_SHUTDOWN_LOW_TEMPERATURE (-20)
+#endif
+//prize-chj-2019-06-15 Low temperature negative 20 degree shutdown end
+
+/*prize-add by sunshuai for for gigast customer  20200706 start  */
+#if defined(CONFIG_PRIZE_CHARGE_CURRENT_CTRL_GIGAST)
+#define BATTERY_SHUTDOWN_LOW_TEMPERATURE (-10)
+#endif
+/*prize-add by sunshuai for for gigast customer  20200706 end  */
+
 
 /* ============================================================ */
 /* typedef and Struct*/

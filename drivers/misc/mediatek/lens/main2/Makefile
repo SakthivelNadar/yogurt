@@ -28,6 +28,9 @@ ifeq ($(CONFIG_MTK_LENS_USE_MODULE), y)
 
 MAIN2_CFILES += main2_lens.c
 
+#/*prize  add  for main2 af by huarui    20191018-start*/
+MAIN2_CFILES += common/dw9714af/DW9714AF.c
+#/*prize  add  for main2 af by huarui    20191018-end*/
 MAIN2_CFILES  += common/lc898212xdaf_f/LC898212XDAF_F.c
 MAIN2_CFILES  += common/lc898212xdaf_f/LC89821x_STMV.c
 MAIN2_CFILES  += common/lc898217af/LC898217AF.c
@@ -48,6 +51,9 @@ obj-y += main2_lens.o
 obj-y += common/lc898212xdaf_f/
 obj-y += common/ak7371af/
 obj-y += common/bu64748af/
+#/*prize  add  for main2 af by huarui    20191018-start*/
+obj-y  += common/dw9714af/
+#/*prize  add  for main2 af by huarui    20191018-end*/
 obj-y += common/lc898217af/
 obj-y  += common/lc898217afa/
 obj-y  += common/lc898217afb/
