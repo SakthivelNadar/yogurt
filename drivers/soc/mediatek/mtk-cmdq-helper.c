@@ -171,6 +171,7 @@ struct cmdq_client *cmdq_mbox_create(struct device *dev, int index)
 	priv->pool_limit = CMDQ_MBOX_BUF_LIMIT;
 	priv->flushq = create_singlethread_workqueue("cmdq_flushq");
 	client->cl_priv = (void *)priv;
+	mutex_init(&client->chan_mutex);
 
 	return client;
 }
@@ -498,6 +499,10 @@ EXPORT_SYMBOL(cmdq_pkt_cl_create);
 void cmdq_pkt_destroy(struct cmdq_pkt *pkt)
 {
 	cmdq_pkt_free_buf(pkt);
+#if IS_ENABLED(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT) || \
+	IS_ENABLED(CONFIG_MTK_CAM_SECURITY_SUPPORT)
+	kfree(pkt->sec_data);
+#endif
 	kfree(pkt);
 }
 EXPORT_SYMBOL(cmdq_pkt_destroy);
@@ -1278,9 +1283,11 @@ s32 cmdq_pkt_flush_async(struct cmdq_client *client, struct cmdq_pkt *pkt,
 	pkt->cb.cb = cb;
 	pkt->cb.data = data;
 
+	mutex_lock(&client->chan_mutex);
 	err = mbox_send_message(client->chan, pkt);
 	/* We can send next packet immediately, so just call txdone. */
 	mbox_client_txdone(client->chan, 0);
+	mutex_unlock(&client->chan_mutex);
 
 	return err;
 }

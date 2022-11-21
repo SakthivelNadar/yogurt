@@ -21,6 +21,8 @@
 #include "ion.h"
 #include "ion_priv.h"
 #include "compat_ion.h"
+#include "mtk/mtk_ion.h"
+#include "mtk/ion_drv.h"
 
 union ion_ioctl_arg {
 	struct ion_fd_data fd;
@@ -102,6 +104,23 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		struct ion_handle *handle;
 
+		if (data.allocation.heap_id_mask ==
+		    ION_HEAP_MULTIMEDIA_MAP_MVA_MASK &&
+			(!__ion_is_user_va(data.allocation.align,
+					   data.allocation.len))) {
+			IONMSG(
+				"ION_IOC_ALLOC from user. invalid align = %zu.\n",
+				data.allocation.align);
+			return -ENOTTY;
+		}
+
+		if (data.allocation.heap_id_mask ==
+		    ION_HEAP_MULTIMEDIA_PA2MVA_MASK) {
+			IONMSG(
+				"ION_IOC_ALLOC from user. invalid heap = %d.\n",
+				data.allocation.heap_id_mask);
+			return -ENOTTY;
+		}
 		handle = ion_alloc(
 						client, data.allocation.len,
 						data.allocation.align,
@@ -143,15 +162,19 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		struct ion_handle *handle;
 
-		handle = ion_handle_get_by_id(client, data.handle.handle);
+		mutex_lock(&client->lock);
+		handle = ion_handle_get_by_id_nolock(client,
+						     data.handle.handle);
 		if (IS_ERR(handle)) {
+			mutex_unlock(&client->lock);
 			ret = PTR_ERR(handle);
 			IONMSG("ION_IOC_SHARE handle(%d) is invalid, ret %d\n",
 			       data.handle.handle, ret);
 			return ret;
 		}
-		data.fd.fd = ion_share_dma_buf_fd(client, handle);
-		ion_handle_put(handle);
+		data.fd.fd = ion_share_dma_buf_fd_nolock(client, handle);
+		ion_handle_put_nolock(handle);
+		mutex_unlock(&client->lock);
 		if (data.fd.fd < 0) {
 			IONMSG("ION_IOC_SHARE fd = %d.\n", data.fd.fd);
 			ret = data.fd.fd;

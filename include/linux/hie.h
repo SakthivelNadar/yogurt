@@ -66,6 +66,7 @@ int hie_is_dummy(void);
 int hie_is_nocrypt(void);
 int hie_register_fs(struct hie_fs *fs);
 int hie_register_device(struct hie_dev *dev);
+int hie_req_check_integrity(struct request *req);
 int hie_decrypt(struct hie_dev *dev, struct request *req, void *priv);
 int hie_encrypt(struct hie_dev *dev, struct request *req, void *priv);
 bool hie_key_verify(struct bio *bio1, struct bio *bio2);
@@ -111,6 +112,12 @@ int hie_register_fs(struct hie_fs *fs)
 
 static inline
 int hie_register_device(struct hie_dev *dev)
+{
+	return 0;
+}
+
+static inline
+int hie_req_check_integrity(struct request *req, struct hie_dev *dev)
 {
 	return 0;
 }

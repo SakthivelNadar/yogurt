@@ -165,6 +165,17 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		int num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
 		struct scatterlist *sg;
 		int i, j, k = 0;
+		if (heap->id == ION_HEAP_TYPE_MULTIMEDIA_MAP_MVA) {
+			int page_align_num = ((((unsigned long)align)
+					& (PAGE_SIZE - 1)) +
+					(len) + (PAGE_SIZE - 1)) >> 12;
+			if (page_align_num > num_pages) {
+				IONMSG("%s create buffer fail, va not align.\n",
+				       __func__);
+				ret = -EINVAL;
+				goto err1;
+			}
+		}
 
 		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
 		if (!buffer->pages) {
@@ -410,18 +421,6 @@ struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
 	return handle ? handle : ERR_PTR(-EINVAL);
 }
 
-struct ion_handle *ion_handle_get_by_id(
-		struct ion_client *client,
-					       int id)
-{
-	struct ion_handle *handle;
-
-	mutex_lock(&client->lock);
-	handle = ion_handle_get_by_id_nolock(client, id);
-	mutex_unlock(&client->lock);
-
-	return handle;
-}
 
 static bool ion_handle_validate(struct ion_client *client,
 				struct ion_handle *handle)
@@ -474,6 +473,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	int ret;
 	unsigned long long start, end;
 	unsigned int heap_mask = ~0;
+	unsigned int alloc_err_heap = 0;
 
 	pr_debug("%s: len %zu align %zu heap_id_mask %u flags %x\n", __func__,
 		 len, align, heap_id_mask, flags);
@@ -517,6 +517,8 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		buffer = ion_buffer_create(heap, dev, len, align, flags);
 		if (!IS_ERR(buffer))
 			break;
+		if (IS_ERR(buffer))
+			alloc_err_heap |= (1 << heap->id);
 	}
 	up_read(&dev->lock);
 
@@ -526,8 +528,19 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	}
 
 	if (IS_ERR(buffer)) {
-		IONMSG("%s buffer is error 0x%p, heap_mask: 0x%x.\n",
-		       __func__, buffer, heap_id_mask);
+		IONMSG("%s error 0x%lx, heap_mask: 0x%x size:%zu align:%zu.\n",
+		       __func__, (unsigned long)buffer,
+		       heap_id_mask, len, align);
+		IONMSG("error heap:0x%x\n", alloc_err_heap);
+		plist_for_each_entry(heap, &dev->heaps, node) {
+			if (!((1 << heap->id) & alloc_err_heap))
+				continue;
+			if (IS_ERR_OR_NULL(heap->debug_show))
+				continue;
+			IONMSG("heap[%s][%d] show:\n", heap->name, heap->id);
+			heap->debug_show(heap, NULL, NULL);
+		}
+
 		return ERR_CAST(buffer);
 	}
 
@@ -1330,6 +1343,13 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
+	if (buffer->heap->id == ION_HEAP_TYPE_MULTIMEDIA_MAP_MVA &&
+	    !sg_page(buffer->sg_table->sgl)) {
+		IONMSG("%s: failure mapping caused by null page\n",
+		       __func__);
+		return -EINVAL;
+	}
+
 	if (ion_buffer_fault_user_mappings(buffer)) {
 		vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND |
 							VM_DONTDUMP;
@@ -1483,24 +1503,28 @@ static struct dma_buf_ops dma_buf_ops = {
 	.unmap = ion_dma_buf_kunmap,
 };
 
-struct dma_buf *ion_share_dma_buf(struct ion_client *client,
-				  struct ion_handle *handle)
+static struct dma_buf *__ion_share_dma_buf(struct ion_client *client,
+					   struct ion_handle *handle,
+					   bool lock_client)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct ion_buffer *buffer;
 	struct dma_buf *dmabuf;
 	bool valid_handle;
 
-	mutex_lock(&client->lock);
+	if (lock_client)
+		mutex_lock(&client->lock);
 	valid_handle = ion_handle_validate(client, handle);
 	if (!valid_handle) {
 		WARN(1, "%s: invalid handle passed to share.\n", __func__);
-		mutex_unlock(&client->lock);
+		if (lock_client)
+			mutex_unlock(&client->lock);
 		return ERR_PTR(-EINVAL);
 	}
 	buffer = handle->buffer;
 	ion_buffer_get(buffer);
-	mutex_unlock(&client->lock);
+	if (lock_client)
+		mutex_unlock(&client->lock);
 
 	exp_info.ops = &dma_buf_ops;
 	exp_info.size = buffer->size;
@@ -1517,16 +1541,24 @@ struct dma_buf *ion_share_dma_buf(struct ion_client *client,
 
 	return dmabuf;
 }
+
+struct dma_buf *ion_share_dma_buf(struct ion_client *client,
+				  struct ion_handle *handle)
+{
+	return __ion_share_dma_buf(client, handle, true);
+}
+
 EXPORT_SYMBOL(ion_share_dma_buf);
 
-int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
+static int __ion_share_dma_buf_fd(struct ion_client *client,
+				  struct ion_handle *handle, bool lock_client)
 {
 	struct dma_buf *dmabuf;
 	int fd;
 
 	mmprofile_log_ex(ion_mmp_events[PROFILE_SHARE], MMPROFILE_FLAG_START,
 			 (unsigned long)client, (unsigned long)handle);
-	dmabuf = ion_share_dma_buf(client, handle);
+	dmabuf = __ion_share_dma_buf(client, handle, lock_client);
 	if (IS_ERR(dmabuf)) {
 		IONMSG("%s dmabuf is err 0x%p.\n", __func__, dmabuf);
 		return PTR_ERR(dmabuf);
@@ -1542,7 +1574,19 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
 	handle->dbg.fd = fd;
 	return fd;
 }
+
+int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
+{
+	return __ion_share_dma_buf_fd(client, handle, true);
+}
+
 EXPORT_SYMBOL(ion_share_dma_buf_fd);
+
+int ion_share_dma_buf_fd_nolock(struct ion_client *client,
+				struct ion_handle *handle)
+{
+	return __ion_share_dma_buf_fd(client, handle, false);
+}
 
 struct ion_handle *ion_import_dma_buf(struct ion_client *client,
 				      struct dma_buf *dmabuf)
@@ -1654,14 +1698,16 @@ int ion_sync_for_device(struct ion_client *client, int fd)
 		IONMSG("%s: can not support heap type(%d) to sync\n",
 		       __func__, buffer->heap->type);
 #else
-	if (buffer->heap->type != (int)ION_HEAP_TYPE_FB)
+	if (buffer->heap->type != (int)ION_HEAP_TYPE_FB &&
+	    buffer->heap->id != (int)ION_HEAP_TYPE_MULTIMEDIA_MAP_MVA &&
+	    buffer->heap->type != (int)ION_HEAP_TYPE_MULTIMEDIA_SEC)
 		dma_sync_sg_for_device(g_ion_device->dev.this_device,
 				       buffer->sg_table->sgl,
 				       buffer->sg_table->nents,
 				       DMA_BIDIRECTIONAL);
 	else
-		pr_err("%s: can not support heap type(%d) to sync\n",
-		       __func__, buffer->heap->type);
+		IONMSG("%s: can not support heap %s type %d to sync\n",
+		       __func__, buffer->heap->name, buffer->heap->type);
 #endif
 #endif
 
@@ -2135,13 +2181,16 @@ struct ion_handle *ion_drv_get_handle(struct ion_client *client,
 		ion_handle_get(handle);
 		mutex_unlock(&client->lock);
 	} else {
-		handle = ion_handle_get_by_id(client, user_handle);
+		mutex_lock(&client->lock);
+		handle = ion_handle_get_by_id_nolock(client, user_handle);
 		if (IS_ERR_OR_NULL(handle)) {
 			IONMSG("%s handle invalid, handle_id=%d\n",
 			       __func__,
 			       user_handle);
+			mutex_unlock(&client->lock);
 			return ERR_PTR(-EINVAL);
 		}
+		mutex_unlock(&client->lock);
 	}
 	return handle;
 }

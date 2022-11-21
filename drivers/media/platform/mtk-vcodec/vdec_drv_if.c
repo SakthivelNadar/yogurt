@@ -215,6 +215,7 @@ void vdec_decode_unprepare(void *ctx_unprepare,
 		return;
 
 	disable_irq(ctx->dev->dec_irq[hw_id]);
+	mtk_vdec_hw_break(ctx);
 	mtk_vcodec_dec_clock_off(&ctx->dev->pm, hw_id);
 	mtk_vcodec_set_curr_ctx(ctx->dev, NULL);
 

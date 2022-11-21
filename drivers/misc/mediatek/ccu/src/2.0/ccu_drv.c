@@ -77,7 +77,7 @@
 
 #define CCU_DEV_NAME            "ccu"
 
-#define CCU_CLK_NUM 2 /* [0]: Camsys, [1]: Mmsys */
+#define CCU_CLK_NUM 3 /* [0]: Camsys, [1]: Mmsys */
 struct clk *ccu_clk_ctrl[CCU_CLK_NUM];
 
 struct ccu_device_s *g_ccu_device;
@@ -580,21 +580,28 @@ int ccu_clock_enable(void)
 {
 	int ret;
 
-	LOG_DBG_MUST("%s.\n", __func__);
+	LOG_DBG_MUST("%s+\n", __func__);
 	ccu_qos_init();
 
-	ret = (clk_prepare_enable(ccu_clk_ctrl[0]) |
-		clk_prepare_enable(ccu_clk_ctrl[1]));
+	ret = clk_prepare_enable(ccu_clk_ctrl[0]);
 	if (ret)
-		LOG_ERR("clock enable fail.\n");
+		LOG_ERR("CCU_CLK_MMSYS_CCU enable fail.\n");
+	ret = clk_prepare_enable(ccu_clk_ctrl[1]);
+	if (ret)
+		LOG_ERR("CAM_PWR enable fail.\n");
+	ret = clk_prepare_enable(ccu_clk_ctrl[2]);
+	if (ret)
+		LOG_ERR("CCU_CLK_CAM_CCU enable fail.\n");
+
 	return ret;
 }
 
 void ccu_clock_disable(void)
 {
 	LOG_DBG_MUST("%s.\n", __func__);
-	clk_disable_unprepare(ccu_clk_ctrl[0]);
+	clk_disable_unprepare(ccu_clk_ctrl[2]);
 	clk_disable_unprepare(ccu_clk_ctrl[1]);
+	clk_disable_unprepare(ccu_clk_ctrl[0]);
 
 	ccu_qos_uninit();
 }
@@ -942,7 +949,7 @@ static int ccu_release(struct inode *inode, struct file *flip)
 static int ccu_mmap(struct file *flip, struct vm_area_struct *vma)
 {
 	unsigned long length = 0;
-	unsigned int pfn = 0x0;
+	unsigned long pfn = 0x0;
 
 	length = (vma->vm_end - vma->vm_start);
 	/*  */
@@ -950,7 +957,7 @@ static int ccu_mmap(struct file *flip, struct vm_area_struct *vma)
 	pfn = vma->vm_pgoff << PAGE_SHIFT;
 
 	LOG_DBG
-	("CCU_mmap: vm_pgoff(0x%lx),pfn(0x%x),phy(0x%lx)\n"
+	("CCU_mmap: vm_pgoff(0x%lx),pfn(0x%lx),phy(0x%lx)\n"
 	vma->vm_pgoff, pfn, vma->vm_pgoff << PAGE_SHIFT);
 	LOG_DBG
 	("vm_start(0x%lx),vm_end(0x%lx),length(0x%lx)\n",
@@ -960,29 +967,29 @@ static int ccu_mmap(struct file *flip, struct vm_area_struct *vma)
 
 	if (pfn == (ccu_hw_base - CCU_HW_OFFSET)) {
 		if (length > PAGE_SIZE) {
-			LOG_ERR
-			("mmap error :module(0x%x),len(0x%lx),CCU_HW(0x%x)!\n",
+			LOG_ERR("mmap error :");
+			LOG_ERR("module(0x%lx),len(0x%lx),CCU_HW(0x%x)!\n",
 			pfn, length, 0x4000);
 			return -EAGAIN;
 		}
 	} else if (pfn == CCU_CAMSYS_BASE) {
 		if (length > CCU_CAMSYS_SIZE) {
-			LOG_ERR
-		    ("mmap error :module(0x%x),len(0x%lx),CCU_CAMSYS(0x%x)!\n",
+			LOG_ERR("mmap error :");
+			LOG_ERR("module(0x%lx),len(0x%lx),CCU_CAMSYS(0x%x)!\n",
 		     pfn, length, 0x4000);
 			return -EAGAIN;
 		}
 	} else if (pfn == CCU_PMEM_BASE) {
 		if (length > CCU_PMEM_SIZE) {
-			LOG_ERR
-		    ("mmap error :module(0x%x),len(0x%lx),CCU_PMEM(0x%x)!\n",
+			LOG_ERR("mmap error :");
+			LOG_ERR("module(0x%lx),len(0x%lx),CCU_PMEM(0x%x)!\n",
 		     pfn, length, 0x4000);
 			return -EAGAIN;
 		}
 	} else if (pfn == CCU_DMEM_BASE) {
 		if (length > CCU_DMEM_SIZE) {
-			LOG_ERR
-		    ("mmap error :module(0x%x),len(0x%lx),CCU_DMEM(0x%x)!\n",
+			LOG_ERR("mmap error :");
+			LOG_ERR("module(0x%lx),len(0x%lx),CCU_DMEM(0x%x)!\n",
 		     pfn, length, 0x4000);
 			return -EAGAIN;
 		}
@@ -1165,13 +1172,19 @@ static int ccu_probe(struct platform_device *pdev)
 /* get Clock control from device tree.  */
 	{
 		ccu_clk_ctrl[0] =
-		devm_clk_get(g_ccu_device->dev, "CCU_CLK_CAM_CCU");
-		if (ccu_clk_ctrl[0] == NULL)
-			LOG_ERR("Get ccu clock ctrl camsys fail.\n");
-		ccu_clk_ctrl[1] =
 		devm_clk_get(g_ccu_device->dev, "CCU_CLK_MMSYS_CCU");
+		if (ccu_clk_ctrl[0] == NULL)
+			LOG_ERR("Get CCU_CLK_MMSYS_CCU fail.\n");
+
+		ccu_clk_ctrl[1] =
+		devm_clk_get(g_ccu_device->dev, "CAM_PWR");
 		if (ccu_clk_ctrl[1] == NULL)
-			LOG_ERR("Get ccu clock ctrl mmsys fail.\n");
+			LOG_ERR("Get CAM_PWR fail.\n");
+
+		ccu_clk_ctrl[2] =
+		devm_clk_get(g_ccu_device->dev, "CCU_CLK_CAM_CCU");
+		if (ccu_clk_ctrl[2] == NULL)
+			LOG_ERR("Get CCU_CLK_CAM_CCU fail.\n");
 	}
 	/**/
 	g_ccu_device->irq_num = irq_of_parse_and_map(node, 0);

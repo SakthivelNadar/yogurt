@@ -1711,6 +1711,16 @@ static int queue_supports_sg_merge(struct dm_target *ti, struct dm_dev *dev,
 	return q && !test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags);
 }
 
+static int queue_supports_inline_encryption(struct dm_target *ti,
+					    struct dm_dev *dev,
+					    sector_t start, sector_t len,
+					    void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && blk_queue_inline_crypt(q);
+}
+
 static bool dm_table_all_devices_attribute(struct dm_table *t,
 					   iterate_devices_callout_fn func)
 {
@@ -1837,10 +1847,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 	blk_queue_write_cache(q, wc, fua);
 
-	/* Inherit inline-crypt capability of underlying devices. */
-	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_INLINECRYPT)))
-		queue_flag_set_unlocked(QUEUE_FLAG_INLINECRYPT, q);
-
 	if (dm_table_supports_dax(t))
 		queue_flag_set_unlocked(QUEUE_FLAG_DAX, q);
 	else
@@ -1864,6 +1870,12 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		queue_flag_clear_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
+
+	/* Inherit inline-crypt capability of underlying devices. */
+	if (dm_table_all_devices_attribute(t, queue_supports_inline_encryption))
+		queue_flag_set_unlocked(QUEUE_FLAG_INLINECRYPT, q);
+	else
+		queue_flag_clear_unlocked(QUEUE_FLAG_INLINECRYPT, q);
 
 	dm_table_verify_integrity(t);
 

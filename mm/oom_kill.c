@@ -868,6 +868,12 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	 * its children or threads, just give it access to memory reserves
 	 * so it can die quickly
 	 */
+
+    // prize zengke 20180620 add for ddr test,ignore memtest thread-----begin
+    if (strstr("memtester", p->comm) || strstr("pri.factorytest", p->comm))
+            return;
+    // prize zengke 20180620 add for ddr test,ignore memtest thread-----end
+
 	task_lock(p);
 	if (task_will_free_mem(p)) {
 		mark_oom_victim(p);

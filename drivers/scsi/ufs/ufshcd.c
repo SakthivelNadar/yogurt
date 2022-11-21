@@ -247,6 +247,8 @@ static struct ufs_dev_fix ufs_fixups[] = {
 	/* MTK PATCH */
 	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_LIMITED_RPMB_MAX_RW_SIZE),
+	UFS_FIX(UFS_VENDOR_MICRON, UFS_ANY_MODEL,
+		UFS_DEVICE_QUIRK_VCC_OFF_DELAY),
 
 	END_FIX
 };
@@ -2641,6 +2643,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	unsigned long flags;
 	int tag;
 	int err = 0;
+	u8 opcode = 0;
 
 	hba = shost_priv(host);
 
@@ -2737,6 +2740,10 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	/* reset crypto_en first and set it later only on encrypted request */
 	lrbp->crypto_en = 0;
+
+	opcode = (u8)(*cmd->cmnd);
+	if ((opcode == READ_10) || (opcode == WRITE_10))
+		hie_req_check_integrity(cmd->request);
 
 	if (hie_request_crypted(cmd->request)) {
 		struct ufs_crypt_info info = {
@@ -6293,6 +6300,7 @@ static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
 	task_req_upiup->input_param2 = cpu_to_be32(task_id);
 
 	ufshcd_vops_res_ctrl(hba, UFS_RESCTL_CMD_SEND);
+	ufs_mtk_auto_hiber8_quirk_handler(hba, false);
 	ufshcd_vops_setup_task_mgmt(hba, free_slot, tm_function);
 
 	/* send command to the controller */
@@ -8589,8 +8597,7 @@ static void ufshcd_vreg_set_lpm(struct ufs_hba *hba)
 	 * To avoid this situation, add 2ms delay before putting these UFS
 	 * rails in LPM mode.
 	 */
-	if (!ufshcd_is_link_active(hba) &&
-	    hba->dev_quirks & UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM)
+	if (!ufshcd_is_link_active(hba))
 		usleep_range(2000, 2100);
 
 	/*
@@ -8762,20 +8769,8 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	 * 3. Manually enter h8.
 	 */
 	ufshcd_vops_auto_hibern8(hba, false);
-	timeout = jiffies + msecs_to_jiffies(H8_POLL_TOUT_MS);
-	do {
-		ret = ufshcd_dme_get(hba, UIC_ARG_MIB(VENDOR_POWERSTATE), &reg);
-		if (ret != 0)
-			dev_err(hba->dev,
-				"ufshcd_dme_get_ 0x%x fail, ret = %d!\n",
-				VENDOR_POWERSTATE, ret);
-
-		if (reg != VENDOR_POWERSTATE_HIBERNATE)
-			break;
-
-		/* sleep for max. 200us */
-		usleep_range(100, 200);
-	} while (time_before(jiffies, timeout));
+	reg = VENDOR_POWERSTATE_LINKUP;
+	ufs_mtk_wait_link_state(hba, &reg, 100);
 
 	/* Device is stuck in H8 state */
 	if (reg == VENDOR_POWERSTATE_HIBERNATE) {
@@ -8847,6 +8842,9 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	ufshcd_set_reg_state(hba, UFS_REG_SUSPEND_SET_LPM); /* MTK PATCH */
 	ufshcd_vreg_set_lpm(hba);
 
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_VCC_OFF_DELAY)
+		mdelay(5);
+
 disable_clks:
 	/*
 	 * Call vendor specific suspend callback. As these callbacks may access
@@ -8858,17 +8856,7 @@ disable_clks:
 		dev_err(hba->dev, "%s: vender suspend failed. ret = %d\n",
 			__func__, ret);
 
-		/* block commands from scsi mid-layer */
-		ufshcd_scsi_block_requests(hba);
-		hba->ufshcd_state = UFSHCD_STATE_ERROR;
-		hba->force_host_reset = true;
-		schedule_work(&hba->eh_work);
-
-		/* Unable to recover the link, so no point proceeding */
-		if (ret) {
-			ret = -EAGAIN;
-			goto set_link_active;
-		}
+		goto set_link_active;
 	}
 
 	if (!ufshcd_is_link_active(hba))

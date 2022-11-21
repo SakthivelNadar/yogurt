@@ -519,12 +519,69 @@ enum MIPITX_PHY_PORT {
 	MIPITX_PHY_PORT_NUM
 };
 
+/*ARR*/
 #define DYNAMIC_FPS_LEVELS 10
 struct dynamic_fps_info {
 	unsigned int fps;
 	unsigned int vfp; /*lines*/
 	/*unsigned int idle_check_interval;*//*ms*/
 };
+
+
+/*DynFPS*/
+enum DynFPS_LEVEL {
+	DFPS_LEVEL0 = 0,
+	DFPS_LEVEL1,
+	DFPS_LEVELNUM,
+};
+
+#define DFPS_LEVELS 2
+enum FPS_CHANGE_INDEX {
+	DYNFPS_NOT_DEFINED = 0,
+	DYNFPS_DSI_VFP = 1,
+	DYNFPS_DSI_HFP = 2,
+	DYNFPS_DSI_MIPI_CLK = 4,
+};
+
+struct dfps_info {
+	enum DynFPS_LEVEL level;
+	unsigned int fps; /*real fps *100*/
+
+	unsigned int vertical_sync_active;
+	unsigned int vertical_backporch;
+	unsigned int vertical_frontporch;
+	unsigned int vertical_frontporch_for_low_power;
+
+	unsigned int horizontal_sync_active;
+	unsigned int horizontal_backporch;
+	unsigned int horizontal_frontporch;
+
+	unsigned int PLL_CLOCK;
+	/* data_rate = PLL_CLOCK x 2 */
+	unsigned int data_rate;
+	/*real fps during active*/
+	unsigned int vact_timing_fps; /*real vact timing fps * 100*/
+
+	/*mipi hopping*/
+	unsigned int dynamic_switch_mipi;
+	unsigned int vertical_sync_active_dyn;
+	unsigned int vertical_backporch_dyn;
+	unsigned int vertical_frontporch_dyn;
+	unsigned int vertical_frontporch_for_low_power_dyn;
+	unsigned int vertical_active_line_dyn;
+
+	unsigned int horizontal_sync_active_dyn;
+	unsigned int horizontal_backporch_dyn;
+	unsigned int horizontal_frontporch_dyn;
+	unsigned int horizontal_active_pixel_dyn;
+
+	unsigned int PLL_CLOCK_dyn;	/* PLL_CLOCK = (int) PLL_CLOCK */
+	unsigned int data_rate_dyn;	/* data_rate = PLL_CLOCK x 2 */
+
+	/*real fps during active*/
+	unsigned int vact_timing_fps_dyn;
+};
+
 
 struct LCM_DSI_PARAMS {
 	enum LCM_DSI_MODE_CON mode;
@@ -674,6 +731,17 @@ struct LCM_DSI_PARAMS {
 	/*for ARR*/
 	unsigned int dynamic_fps_levels;
 	struct dynamic_fps_info dynamic_fps_table[DYNAMIC_FPS_LEVELS];
+
+#ifdef CONFIG_MTK_HIGH_FRAME_RATE
+	/****DynFPS start****/
+	unsigned int dfps_enable;
+	unsigned int dfps_default_fps;
+	unsigned int dfps_def_vact_tim_fps;
+	unsigned int dfps_num;
+	/*unsigned int dfps_solution;*/
+	struct dfps_info dfps_params[DFPS_LEVELS];
+	/****DynFPS end****/
+#endif
 };
 
 /* ------------------------------------------------------------------------- */
@@ -885,6 +953,12 @@ struct LCM_UTIL_FUNCS {
 	void (*mipi_dsi_cmds_tx)(void *cmdq, struct dsi_cmd_desc *cmds);
 	unsigned int (*mipi_dsi_cmds_rx)(char *out,
 		struct dsi_cmd_desc *cmds, unsigned int len);
+	/*Dynfps*/
+	void (*dsi_dynfps_send_cmd)(
+		void *cmdq, unsigned int cmd,
+		unsigned char count, unsigned char *para_list,
+		unsigned char force_update);
+
 };
 enum LCM_DRV_IOCTL_CMD {
 	LCM_DRV_IOCTL_ENABLE_CMD_MODE = 0x100,
@@ -945,6 +1019,12 @@ struct LCM_DRIVER {
 	void (*set_pwm_for_mix)(int enable);
 
 	void (*aod)(int enter);
+
+	/* /////////////DynFPS///////////////////////////// */
+	void (*dfps_send_lcm_cmd)(void *cmdq_handle,
+		unsigned int from_level, unsigned int to_level);
+	bool (*dfps_need_send_cmd)(
+	unsigned int from_level, unsigned int to_level);
 };
 
 /* LCM Driver Functions */

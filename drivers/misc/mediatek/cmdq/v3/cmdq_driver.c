@@ -21,6 +21,8 @@
 #include "cmdq_helper_ext.h"
 #include "cmdq_record.h"
 #include "cmdq_device.h"
+#include "mdp_ioctl_ex.h"
+#include "mdp_def_ex.h"
 
 #ifdef CMDQ_SECURE_PATH_SUPPORT
 #include "cmdq_sec.h"
@@ -123,6 +125,18 @@ static const struct file_operations cmdqDebugInstructionCountOp = {
 	.release = single_release,
 };
 #endif
+
+static u64 job_mapping_idx = 1;
+static struct list_head job_mapping_list;
+struct cmdq_job_mapping_struct {
+	u64 id;
+	struct cmdqRecStruct *job;
+	struct list_head list_entry;
+};
+static DEFINE_MUTEX(cmdq_job_mapping_list_mutex);
+
+void cmdq_driver_dump_readback(u32 *addrs, u32 count, u32 *values)
+{}
 
 static int cmdq_open(struct inode *pInode, struct file *pFile)
 {
@@ -330,6 +344,7 @@ do { \
 static long cmdq_driver_destroy_secure_medadata(
 	struct cmdqCommandStruct *pCommand)
 {
+#ifdef CMDQ_SECURE_PATH_SUPPORT
 	u32 i;
 
 	kfree(CMDQ_U32_PTR(pCommand->secData.addrMetadatas));
@@ -337,7 +352,7 @@ static long cmdq_driver_destroy_secure_medadata(
 
 	for (i = 0; i < ARRAY_SIZE(pCommand->secData.ispMeta.ispBufs); i++)
 		CMDQ_PTR_FREE_NULL(pCommand->secData.ispMeta.ispBufs[i].va);
-
+#endif
 	return 0;
 }
 
@@ -609,6 +624,9 @@ static s32 cmdq_driver_copy_handle_prop_from_user(void *from, u32 size,
 		}
 
 		*to = task_prop;
+	} else if (to) {
+		CMDQ_LOG("Initialize prop_addr to NULL...\n");
+		*to = NULL;
 	}
 
 	return 0;
@@ -616,15 +634,17 @@ static s32 cmdq_driver_copy_handle_prop_from_user(void *from, u32 size,
 
 static void cmdq_release_handle_property(void **prop_addr, u32 *prop_size)
 {
-	if (!prop_addr || !prop_size)
+	if (!prop_addr || !prop_size || !*prop_size) {
+		CMDQ_LOG("Return w/o need of kfree(prop_addr)\n");
 		return;
+	}
 
 	kfree(*prop_addr);
 	*prop_addr = NULL;
 	*prop_size = 0;
 }
 
-static s32 cmdq_driver_ioctl_exec_command(struct file *pf, unsigned long param)
+s32 cmdq_driver_ioctl_exec_command(struct file *pf, unsigned long param)
 {
 	struct cmdqCommandStruct command;
 	struct task_private desc_private = {0};
@@ -668,7 +688,7 @@ static s32 cmdq_driver_ioctl_exec_command(struct file *pf, unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_query_usage(struct file *pf, unsigned long param)
+s32 cmdq_driver_ioctl_query_usage(struct file *pf, unsigned long param)
 {
 	int count[CMDQ_MAX_ENGINE_COUNT] = {0};
 
@@ -684,7 +704,7 @@ static s32 cmdq_driver_ioctl_query_usage(struct file *pf, unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
+s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
 	unsigned long param)
 {
 	struct cmdqJobStruct job;
@@ -692,6 +712,8 @@ static s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
 	struct cmdqRecStruct *handle = NULL;
 	u32 userRegCount;
 	s32 status;
+
+	struct cmdq_job_mapping_struct *mapping_job = NULL;
 
 	if (copy_from_user(&job, (void *)param, sizeof(job))) {
 		CMDQ_ERR("copy job from user fail\n");
@@ -777,7 +799,24 @@ static s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
 	/* free secure path metadata */
 	cmdq_driver_destroy_secure_medadata(&job.command);
 
-	job.hJob = (unsigned long)handle;
+	/* privateData can reset since it has passed to handle */
+	job.command.privateData = 0;
+
+	mapping_job = kzalloc(sizeof(*mapping_job), GFP_KERNEL);
+	if (!mapping_job)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&mapping_job->list_entry);
+	mutex_lock(&cmdq_job_mapping_list_mutex);
+	if (job_mapping_idx == 0)
+		job_mapping_idx = 1;
+	mapping_job->id = job_mapping_idx;
+	job.hJob = job_mapping_idx;
+	job_mapping_idx++;
+	mapping_job->job = handle;
+	list_add_tail(&mapping_job->list_entry, &job_mapping_list);
+	mutex_unlock(&cmdq_job_mapping_list_mutex);
+
 	if (copy_to_user((void *)param, (void *)&job, sizeof(job))) {
 		CMDQ_ERR("CMDQ_IOCTL_ASYNC_JOB_EXEC copy_to_user failed\n");
 		return -EFAULT;
@@ -786,7 +825,7 @@ static s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_async_job_wait_and_close(unsigned long param)
+s32 cmdq_driver_ioctl_async_job_wait_and_close(unsigned long param)
 {
 	struct cmdqJobResultStruct jobResult;
 	struct cmdqRecStruct *handle;
@@ -794,14 +833,29 @@ static s32 cmdq_driver_ioctl_async_job_wait_and_close(unsigned long param)
 	/* backup value after task release */
 	s32 status;
 	u64 exec_cost = sched_clock();
+	struct cmdq_job_mapping_struct *mapping_job = NULL, *tmp = NULL;
 
 	if (copy_from_user(&jobResult, (void *)param, sizeof(jobResult))) {
 		CMDQ_ERR("copy_from_user jobResult fail\n");
 		return -EFAULT;
 	}
 
+	handle = NULL;
 	/* verify job handle */
-	handle = cmdq_mdp_get_valid_handle((unsigned long)jobResult.hJob);
+	mutex_lock(&cmdq_job_mapping_list_mutex);
+	list_for_each_entry_safe(mapping_job, tmp, &job_mapping_list,
+		list_entry) {
+		if (mapping_job->id == jobResult.hJob) {
+			handle = mapping_job->job;
+			CMDQ_MSG("find handle:%p with id:%llx\n",
+				handle, jobResult.hJob);
+			list_del(&mapping_job->list_entry);
+			kfree(mapping_job);
+			break;
+		}
+	}
+	mutex_unlock(&cmdq_job_mapping_list_mutex);
+
 	if (!handle) {
 		CMDQ_ERR("job does not exists:0x%016llx\n", jobResult.hJob);
 		return -EFAULT;
@@ -904,7 +958,7 @@ static s32 cmdq_driver_ioctl_async_job_wait_and_close(unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_alloc_write_address(unsigned long param)
+s32 cmdq_driver_ioctl_alloc_write_address(void *fp, unsigned long param)
 {
 	struct cmdqWriteAddressStruct addrReq;
 	dma_addr_t paStart = 0;
@@ -933,7 +987,7 @@ static s32 cmdq_driver_ioctl_alloc_write_address(unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_free_write_address(unsigned long param)
+s32 cmdq_driver_ioctl_free_write_address(unsigned long param)
 {
 	struct cmdqWriteAddressStruct freeReq;
 
@@ -947,7 +1001,7 @@ static s32 cmdq_driver_ioctl_free_write_address(unsigned long param)
 	return cmdqCoreFreeWriteAddress(freeReq.startPA, CMDQ_CLT_MDP);
 }
 
-static s32 cmdq_driver_ioctl_read_address_value(unsigned long param)
+s32 cmdq_driver_ioctl_read_address_value(unsigned long param)
 {
 	struct cmdqReadAddressStruct readReq;
 
@@ -964,7 +1018,7 @@ static s32 cmdq_driver_ioctl_read_address_value(unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_query_cap_bits(unsigned long param)
+s32 cmdq_driver_ioctl_query_cap_bits(unsigned long param)
 {
 	int capBits = 0;
 
@@ -979,7 +1033,7 @@ static s32 cmdq_driver_ioctl_query_cap_bits(unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_query_dts(unsigned long param)
+s32 cmdq_driver_ioctl_query_dts(unsigned long param)
 {
 	struct cmdqDTSDataStruct *dts;
 
@@ -993,7 +1047,7 @@ static s32 cmdq_driver_ioctl_query_dts(unsigned long param)
 	return 0;
 }
 
-static s32 cmdq_driver_ioctl_notify_engine(unsigned long param)
+s32 cmdq_driver_ioctl_notify_engine(unsigned long param)
 {
 	u64 engineFlag;
 
@@ -1014,12 +1068,15 @@ static long cmdq_ioctl(struct file *pf, unsigned int code,
 	CMDQ_VERBOSE("%s code:0x%08x f:0x%p\n", __func__, code, pf);
 
 	switch (code) {
+#if 0
 	case CMDQ_IOCTL_EXEC_COMMAND:
 		status = cmdq_driver_ioctl_exec_command(pf, param);
 		break;
+#endif
 	case CMDQ_IOCTL_QUERY_USAGE:
 		status = cmdq_driver_ioctl_query_usage(pf, param);
 		break;
+#if 0
 	case CMDQ_IOCTL_ASYNC_JOB_EXEC:
 		CMDQ_SYSTRACE_BEGIN("%s_async_job_exec\n", __func__);
 		status = cmdq_driver_ioctl_async_job_exec(pf, param);
@@ -1031,7 +1088,7 @@ static long cmdq_ioctl(struct file *pf, unsigned int code,
 		CMDQ_SYSTRACE_END();
 		break;
 	case CMDQ_IOCTL_ALLOC_WRITE_ADDRESS:
-		status = cmdq_driver_ioctl_alloc_write_address(param);
+		status = cmdq_driver_ioctl_alloc_write_address(pf, param);
 		break;
 	case CMDQ_IOCTL_FREE_WRITE_ADDRESS:
 		status = cmdq_driver_ioctl_free_write_address(param);
@@ -1039,6 +1096,7 @@ static long cmdq_ioctl(struct file *pf, unsigned int code,
 	case CMDQ_IOCTL_READ_ADDRESS_VALUE:
 		status = cmdq_driver_ioctl_read_address_value(param);
 		break;
+#endif
 	case CMDQ_IOCTL_QUERY_CAP_BITS:
 		status = cmdq_driver_ioctl_query_cap_bits(param);
 		break;
@@ -1047,6 +1105,26 @@ static long cmdq_ioctl(struct file *pf, unsigned int code,
 		break;
 	case CMDQ_IOCTL_NOTIFY_ENGINE:
 		status = cmdq_driver_ioctl_notify_engine(param);
+		break;
+	case CMDQ_IOCTL_ASYNC_EXEC:
+		CMDQ_MSG("ioctl CMDQ_IOCTL_ASYNC_EXEC\n");
+		status = mdp_ioctl_async_exec(pf, param);
+		break;
+	case CMDQ_IOCTL_ASYNC_WAIT:
+		CMDQ_MSG("ioctl CMDQ_IOCTL_ASYNC_WAIT\n");
+		status = mdp_ioctl_async_wait(param);
+		break;
+	case CMDQ_IOCTL_ALLOC_READBACK_SLOTS:
+		CMDQ_MSG("ioctl CMDQ_IOCTL_ALLOC_READBACK_SLOTS\n");
+		status = mdp_ioctl_alloc_readback_slots(pf, param);
+		break;
+	case CMDQ_IOCTL_FREE_READBACK_SLOTS:
+		CMDQ_MSG("ioctl CMDQ_IOCTL_FREE_READBACK_SLOTS\n");
+		status = mdp_ioctl_free_readback_slots(pf, param);
+		break;
+	case CMDQ_IOCTL_READ_READBACK_SLOTS:
+		CMDQ_MSG("ioctl CMDQ_IOCTL_READ_READBACK_SLOTS\n");
+		status = mdp_ioctl_read_readback_slots(param);
 		break;
 	default:
 		CMDQ_ERR("unrecognized ioctl 0x%08x\n", code);
@@ -1074,6 +1152,11 @@ static long cmdq_ioctl_compat(struct file *pFile, unsigned int code,
 	case CMDQ_IOCTL_QUERY_CAP_BITS:
 	case CMDQ_IOCTL_QUERY_DTS:
 	case CMDQ_IOCTL_NOTIFY_ENGINE:
+	case CMDQ_IOCTL_ASYNC_EXEC:
+	case CMDQ_IOCTL_ASYNC_WAIT:
+	case CMDQ_IOCTL_ALLOC_READBACK_SLOTS:
+	case CMDQ_IOCTL_FREE_READBACK_SLOTS:
+	case CMDQ_IOCTL_READ_READBACK_SLOTS:
 		/* All ioctl structures should be the same size in
 		 * 32-bit and 64-bit linux.
 		 */
@@ -1248,6 +1331,9 @@ static int cmdq_probe(struct platform_device *pDevice)
 		CMDQ_ERR("%s attr inst count create fail\n", __func__);
 #endif
 
+	INIT_LIST_HEAD(&job_mapping_list);
+
+	mdp_limit_dev_create(pDevice);
 	CMDQ_LOG("CMDQ driver probe end\n");
 
 	return 0;
@@ -1306,6 +1392,18 @@ static struct platform_driver gCmdqDriver = {
 		.of_match_table = cmdq_of_ids,
 	}
 };
+
+static int __init mdp_late_init(void)
+{
+	int status;
+
+	CMDQ_LOG("%s begin\n", __func__);
+	status = mdp_limit_late_init();
+	CMDQ_LOG("%s end\n", __func__);
+
+	return 0;
+}
+late_initcall(mdp_late_init);
 
 static int __init cmdq_init(void)
 {
@@ -1384,6 +1482,7 @@ static void __exit cmdq_exit(void)
 
 	/* De-Initialize cmdq dev related data */
 	cmdq_dev_deinit();
+	mdp_limit_dev_destroy();
 
 	CMDQ_LOG("CMDQ driver exit end\n");
 }

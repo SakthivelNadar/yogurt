@@ -114,6 +114,7 @@ obj-$(CONFIG_USB_MU3D_DRV)  += mu3d/
 obj-$(CONFIG_MTK_RTC)	+= rtc/
 obj-$(CONFIG_MTK_XO)	+= xo/
 obj-$(CONFIG_MTK_CMDQ) += cmdq/
+obj-$(CONFIG_MTK_CMDQ) += mdp/
 obj-$(CONFIG_MTK_SMI_EXT) += smi/
 obj-$(CONFIG_MTK_LCM) += lcm/
 obj-$(CONFIG_MTK_LCM) += ext_disp/
@@ -156,3 +157,6 @@ obj-$(CONFIG_MTK_JPEG) += jpeg/
 obj-$(CONFIG_MTK_SPMTWAM) += twam/
 obj-$(CONFIG_MTK_LOW_POWER_MODULE) += lpm/
 
+ifeq ($(CONFIG_MTK_HAVE_EXTERNAL_VENDOR_PATH),y)
+obj-y += ../../../../$(subst $\",,$(CONFIG_MTK_EXTERNAL_VENDOR_PATH))
+endif

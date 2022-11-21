@@ -881,6 +881,9 @@ static int xhci_mtk_remove(struct platform_device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct usb_hcd  *shared_hcd = xhci->shared_hcd;
 
+	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_disable(&dev->dev);
+
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
 	usb_remove_hcd(shared_hcd);
@@ -897,8 +900,6 @@ static int xhci_mtk_remove(struct platform_device *dev)
 	xhci_mtk_sch_exit(mtk);
 	xhci_mtk_clks_disable(mtk);
 	xhci_mtk_ldos_disable(mtk);
-	pm_runtime_put_noidle(&dev->dev);
-	pm_runtime_disable(&dev->dev);
 
 	return 0;
 }
@@ -906,7 +907,12 @@ static int xhci_mtk_remove(struct platform_device *dev)
 static int __maybe_unused xhci_mtk_runtime_suspend(struct device *dev)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
-	struct xhci_hcd *xhci = hcd_to_xhci(mtk->hcd);
+	struct xhci_hcd *xhci;
+
+	if (!mtk->hcd)
+		return -ESHUTDOWN;
+
+	xhci = hcd_to_xhci(mtk->hcd);
 
 	xhci_info(xhci, "%s\n", __func__);
 	xhci_mtk_host_disable(mtk);

@@ -134,7 +134,7 @@ static ssize_t vibr_activate_show(struct device *dev,
 static ssize_t vibr_activate_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	unsigned int activate, dur;
+	unsigned int activate = 0, dur = 0;
 	ssize_t ret;
 
 	ret = kstrtouint(buf, 10, &activate);
@@ -157,7 +157,7 @@ static ssize_t vibr_state_show(struct device *dev,
 static ssize_t vibr_state_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	unsigned int state;
+	unsigned int state = 0;
 	ssize_t ret;
 
 	ret = kstrtouint(buf, 10, &state);
@@ -173,7 +173,7 @@ static ssize_t vibr_state_store(struct device *dev,
 static ssize_t vibr_duration_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	unsigned int duration;
+	unsigned int duration = 0;
 	ssize_t ret;
 
 	ret = kstrtouint(buf, 10, &duration);

@@ -594,6 +594,8 @@ static inline void bio_clone_crypt_info(struct bio *dst, const struct bio *src)
 		  BIO_BC_INFO_GET);
 	}
 
+	dst->bi_dio_inode = src->bi_dio_inode;
+
 #if defined(CONFIG_MTK_HW_FDE)
 	/* for FDE */
 	dst->bi_hw_fde = src->bi_hw_fde;

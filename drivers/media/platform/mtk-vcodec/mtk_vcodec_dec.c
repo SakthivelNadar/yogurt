@@ -24,6 +24,7 @@
 #include "mtk_vcodec_util.h"
 #include "mtk_vcodec_dec_pm.h"
 #include "vdec_drv_if.h"
+#include "smi_public.h"
 
 #define MTK_VDEC_MIN_W  64U
 #define MTK_VDEC_MIN_H  64U
@@ -410,7 +411,7 @@ static void mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 {
 	unsigned int dpbsize = 0;
 	int ret;
-	struct mtk_color_desc color_desc;
+	struct mtk_color_desc color_desc = {.is_hdr = 0};
 
 	if (vdec_if_get_param(ctx,
 						  GET_PARAM_PIC_INFO,
@@ -539,7 +540,7 @@ static void mtk_vdec_worker(struct work_struct *work)
 	unsigned int fourcc = ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc;
 	unsigned int dpbsize = 0;
 	struct timeval timestamp;
-	struct mtk_color_desc color_desc;
+	struct mtk_color_desc color_desc = {.is_hdr = 0};
 
 	mutex_lock(&ctx->worker_lock);
 	if (ctx->state != MTK_STATE_HEADER) {
@@ -883,6 +884,37 @@ void mtk_vdec_lock(struct mtk_vcodec_ctx *ctx, u32 hw_id)
 		ret = down_interruptible(&ctx->dev->dec_sem[hw_id]);
 }
 
+void mtk_vdec_hw_break(struct mtk_vcodec_ctx *ctx)
+{
+	u32 cg_status = 0;
+	void __iomem *vdec_misc_addr = ctx->dev->dec_reg_base[VDEC_MISC];
+	void __iomem *vdec_vld_addr = ctx->dev->dec_reg_base[VDEC_VLD];
+	struct timeval tv_start;
+	struct timeval tv_end;
+	u32 usec;
+
+	/* hw break */
+	writel((readl(vdec_misc_addr + 0x0100) | 0x1),
+		   vdec_misc_addr + 0x0100);
+
+	do_gettimeofday(&tv_start);
+	cg_status = readl(vdec_misc_addr + 0x0104);
+	while (!((cg_status & 0x1) && (cg_status & 0x10))) {
+		do_gettimeofday(&tv_end);
+		usec = (tv_end.tv_sec - tv_start.tv_sec) * 1000000 +
+		       (tv_end.tv_usec - tv_start.tv_usec);
+		if (usec > 20000) {
+			mtk_v4l2_err("VDEC HW break timeout");
+			smi_debug_bus_hang_detect(0, "VCODEC");
+		}
+		cg_status = readl(vdec_misc_addr + 0x0104);
+	}
+
+	/* sw reset */
+	writel(0x1, vdec_vld_addr + 0x0108);
+	writel(0x0, vdec_vld_addr + 0x0108);
+}
+
 void mtk_vcodec_dec_empty_queues(struct file *file, struct mtk_vcodec_ctx *ctx)
 {
 	struct vb2_buffer *src_buf = NULL, *dst_buf = NULL;
@@ -1087,6 +1119,12 @@ static int vidioc_vdec_qbuf(struct file *file, void *priv,
 	}
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, buf->type);
+	if (buf->index >= vq->num_buffers) {
+		mtk_v4l2_err("[%d] buffer index %d out of range %d",
+			ctx->id, buf->index, vq->num_buffers);
+		return -EINVAL;
+	}
+
 	vb = vq->bufs[buf->index];
 	vb2_v4l2 = container_of(vb, struct vb2_v4l2_buffer, vb2_buf);
 	mtkbuf = container_of(vb2_v4l2, struct mtk_video_dec_buf, vb);
@@ -1159,6 +1197,11 @@ static int vidioc_vdec_dqbuf(struct file *file, void *priv,
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
 		ret == 0) {
 		vq = v4l2_m2m_get_vq(ctx->m2m_ctx, buf->type);
+		if (buf->index >= vq->num_buffers) {
+			mtk_v4l2_err("[%d] buffer index %d out of range %d",
+				ctx->id, buf->index, vq->num_buffers);
+			return -EINVAL;
+		}
 		vb = vq->bufs[buf->index];
 		vb2_v4l2 = container_of(vb, struct vb2_v4l2_buffer, vb2_buf);
 		mtkbuf = container_of(vb2_v4l2, struct mtk_video_dec_buf, vb);
