@@ -115,12 +115,12 @@
 	pinctrl-2 = <&ctp_ts_reset_active>;
 	pinctrl-3 = <&ctp_ts_int_suspend>;
 	pinctrl-4 = <&ctp_ts_reset_suspend>;
-	status = "okay";
+	status = "disabled";
 
 	gt9886@5d {
 		compatible = "goodix,gt9886";
 		reg = <0x5d>;
-		status = "ok";
+		status = "disabled";
 		interrupt-parent = <&pio>;
 		interrupts = <1 IRQ_TYPE_EDGE_FALLING 1 0>;
 		vtouch-supply = <&mt_pmic_vldo28_ldo_reg>;
@@ -171,7 +171,7 @@
 	pinctrl-3 = <&ctp_pins_eint_output1>;
 	pinctrl-4 = <&ctp_pins_rst_output0>;
 	pinctrl-5 = <&ctp_pins_rst_output1>;
-	status = "okay";
+	status = "disabled";
 };
 &pio {
 	ctp_pins_default: eint0default {
@@ -250,7 +250,7 @@
 		compatible = "focaltech,fts";
 		reg = <0>;
 		spi-max-frequency = <6000000>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 /*//prize added by pengzhipeng, focaltech,fts support, 20200831-end*/
