@@ -685,6 +685,6 @@
     };
 };
 /*prize add by zhuzhengjiang for flashlight:aw36518 end*/
-#include <k69v1_64/cust.dtsi>
+#include <cust.dtsi>
 #include "cust_mt6768_camera.dtsi"
 /*End of this file, DO NOT ADD ANYTHING HERE*/
