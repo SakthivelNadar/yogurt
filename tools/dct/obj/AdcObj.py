@@ -84,7 +84,7 @@ class AdcObj(ModuleObj):
                 gen_str += '''\t\tmediatek,%s = <%d>;\n''' %(value.lower(), int(key[3:]))
 
             if value == "ADC_FDD_RF_PARAMS_DYNAMIC_CUSTOM_CH":
-                val = string.atoi(key[3:])
+                val = int(key[3:])
 
         gen_str += '''\t\tstatus = \"okay\";\n'''
         gen_str += '''\t};\n'''
